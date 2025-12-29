@@ -2,6 +2,9 @@ import SwiftUI
 
 /// 启动页视图
 struct SplashView: View {
+    /// 认证管理器
+    @ObservedObject var authManager = AuthManager.shared
+
     /// 是否显示加载动画
     @State private var isAnimating = false
 
@@ -16,6 +19,9 @@ struct SplashView: View {
 
     /// 是否完成加载
     @Binding var isFinished: Bool
+
+    /// 会话检查是否完成
+    @State private var sessionChecked = false
 
     var body: some View {
         ZStack {
@@ -141,22 +147,34 @@ struct SplashView: View {
         }
     }
 
-    // MARK: - 模拟加载
+    // MARK: - 检查会话并加载
 
     private func simulateLoading() {
-        // 模拟加载过程
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            loadingText = "正在加载资源..."
-        }
+        // 第一步：检查会话
+        Task {
+            loadingText = "正在检查登录状态..."
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            loadingText = "准备就绪"
-        }
+            // 等待认证状态监听器处理初始会话
+            // authStateChanges 会在启动时发送 .initialSession 事件
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
 
-        // 完成加载，进入主界面
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isFinished = true
+            await MainActor.run {
+                loadingText = "正在加载资源..."
+            }
+
+            try? await Task.sleep(nanoseconds: 800_000_000) // 0.8秒
+
+            await MainActor.run {
+                loadingText = "准备就绪"
+            }
+
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+
+            // 完成加载，进入主界面
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isFinished = true
+                }
             }
         }
     }

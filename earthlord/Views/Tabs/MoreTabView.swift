@@ -17,16 +17,33 @@ struct MoreTabView: View {
                                 .padding(.horizontal, 4)
 
                             // Supabase 测试入口
-                            NavigationLink {
-                                SupabaseTestView()
-                            } label: {
-                                ActionCard(
-                                    icon: "server.rack",
-                                    title: "Supabase 连接测试",
-                                    subtitle: "测试后端服务连接状态"
-                                ) {}
+                            NavigationLink(destination: SupabaseTestView()) {
+                                ApocalypseCard {
+                                    HStack(spacing: 16) {
+                                        Image(systemName: "server.rack")
+                                            .font(.title)
+                                            .foregroundColor(ApocalypseTheme.primary)
+                                            .frame(width: 50, height: 50)
+                                            .background(ApocalypseTheme.primary.opacity(0.15))
+                                            .cornerRadius(10)
+
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Supabase 连接测试")
+                                                .font(.headline)
+                                                .foregroundColor(ApocalypseTheme.textPrimary)
+                                            Text("测试后端服务连接状态")
+                                                .font(.caption)
+                                                .foregroundColor(ApocalypseTheme.textSecondary)
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundColor(ApocalypseTheme.textMuted)
+                                    }
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
 
                         // 设置区域
