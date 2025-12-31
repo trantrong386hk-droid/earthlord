@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @State private var selectedTab = 0
+    @State private var selectedTab = 2  // 默认进入「个人」页面
 
     var body: some View {
         TabView(selection: $selectedTab) {

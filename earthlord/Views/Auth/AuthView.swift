@@ -196,7 +196,9 @@ struct AuthView: View {
                 backgroundColor: .white,
                 foregroundColor: .black
             ) {
-                showToast("Google 登录即将开放")
+                Task {
+                    await authManager.signInWithGoogle()
+                }
             }
         }
     }
@@ -336,38 +338,39 @@ struct RegisterSection: View {
 
     /// 当前步骤（根据 authManager 状态自动计算）
     private var currentStep: Int {
-        if authManager.needsPasswordSetup && authManager.otpVerified {
-            return 3  // 第三步：设置密码
-        } else if authManager.otpSent {
+        if authManager.otpSent {
             return 2  // 第二步：验证码
         } else {
-            return 1  // 第一步：邮箱
+            return 1  // 第一步：邮箱和密码
         }
+    }
+
+    /// 密码是否有效
+    private var isPasswordValid: Bool {
+        password.count >= 6 && password == confirmPassword
     }
 
     var body: some View {
         VStack(spacing: 24) {
             // 步骤指示器
-            StepIndicator(currentStep: currentStep, totalSteps: 3)
+            StepIndicator(currentStep: currentStep, totalSteps: 2)
 
             // 根据步骤显示不同内容
             switch currentStep {
             case 1:
-                step1EmailInput
+                step1EmailAndPassword
             case 2:
                 step2OTPVerification
-            case 3:
-                step3PasswordSetup
             default:
                 EmptyView()
             }
         }
     }
 
-    // MARK: - 第一步：邮箱输入
-    private var step1EmailInput: some View {
+    // MARK: - 第一步：邮箱和密码输入
+    private var step1EmailAndPassword: some View {
         VStack(spacing: 20) {
-            Text("输入您的邮箱")
+            Text("创建您的账户")
                 .font(.headline)
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
@@ -378,15 +381,36 @@ struct RegisterSection: View {
                 keyboardType: .emailAddress
             )
 
+            AuthTextField(
+                icon: "lock",
+                placeholder: "密码（至少6位）",
+                text: $password,
+                isSecure: true
+            )
+
+            AuthTextField(
+                icon: "lock.fill",
+                placeholder: "确认密码",
+                text: $confirmPassword,
+                isSecure: true
+            )
+
+            // 密码不匹配提示
+            if !confirmPassword.isEmpty && password != confirmPassword {
+                Text("两次输入的密码不一致")
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.danger)
+            }
+
             PrimaryButton(title: "发送验证码") {
                 Task {
-                    await authManager.sendRegisterOTP(email: email)
+                    await authManager.sendRegisterOTP(email: email, password: password)
                     if authManager.otpSent {
                         startCountdown()
                     }
                 }
             }
-            .disabled(email.isEmpty || !isValidEmail(email))
+            .disabled(email.isEmpty || !isValidEmail(email) || !isPasswordValid)
 
             if !email.isEmpty && !isValidEmail(email) {
                 Text("请输入有效的邮箱地址")
@@ -411,7 +435,7 @@ struct RegisterSection: View {
             OTPInputField(code: $otpCode)
 
             // 验证按钮
-            PrimaryButton(title: "验证") {
+            PrimaryButton(title: "完成注册") {
                 Task {
                     await authManager.verifyRegisterOTP(email: email, code: otpCode)
                 }
@@ -431,7 +455,7 @@ struct RegisterSection: View {
                 } else {
                     Button("重新发送") {
                         Task {
-                            await authManager.sendRegisterOTP(email: email)
+                            await authManager.sendRegisterOTP(email: email, password: password)
                             if authManager.otpSent {
                                 startCountdown()
                             }
@@ -441,47 +465,6 @@ struct RegisterSection: View {
                     .foregroundColor(ApocalypseTheme.primary)
                 }
             }
-        }
-    }
-
-    // MARK: - 第三步：设置密码
-    private var step3PasswordSetup: some View {
-        VStack(spacing: 20) {
-            Text("设置您的密码")
-                .font(.headline)
-                .foregroundColor(ApocalypseTheme.textPrimary)
-
-            Text("验证成功！请设置密码完成注册")
-                .font(.subheadline)
-                .foregroundColor(ApocalypseTheme.success)
-
-            AuthTextField(
-                icon: "lock",
-                placeholder: "密码（至少6位）",
-                text: $password,
-                isSecure: true
-            )
-
-            AuthTextField(
-                icon: "lock.fill",
-                placeholder: "确认密码",
-                text: $confirmPassword,
-                isSecure: true
-            )
-
-            // 密码不匹配提示
-            if !confirmPassword.isEmpty && password != confirmPassword {
-                Text("两次输入的密码不一致")
-                    .font(.caption)
-                    .foregroundColor(ApocalypseTheme.danger)
-            }
-
-            PrimaryButton(title: "完成注册") {
-                Task {
-                    await authManager.completeRegistration(password: password)
-                }
-            }
-            .disabled(password.count < 6 || password != confirmPassword)
         }
     }
 

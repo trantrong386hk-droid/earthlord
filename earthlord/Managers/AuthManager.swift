@@ -12,6 +12,7 @@ import Supabase
 import Auth
 #if os(iOS)
 import UIKit
+import GoogleSignIn
 #endif
 
 // MARK: - 认证流程类型
@@ -209,12 +210,24 @@ class AuthManager: ObservableObject {
     // MARK: - ========== 注册流程 ==========
 
     /// 发送注册验证码
-    /// - Parameter email: 用户邮箱
+    /// - Parameters:
+    ///   - email: 用户邮箱
+    ///   - password: 用户密码
     ///
-    /// 调用 Supabase 的 `signInWithOTP`，成功后 `otpSent = true`
-    func sendRegisterOTP(email: String) async {
+    /// 调用 Supabase 的 `signUp` 创建用户，成功后 `otpSent = true`
+    func sendRegisterOTP(email: String, password: String) async {
         guard !email.isEmpty else {
             errorMessage = "请输入邮箱地址"
+            return
+        }
+
+        guard !password.isEmpty else {
+            errorMessage = "请输入密码"
+            return
+        }
+
+        guard password.count >= 6 else {
+            errorMessage = "密码长度至少6位"
             return
         }
 
@@ -223,11 +236,20 @@ class AuthManager: ObservableObject {
         currentFlowType = .register
         currentEmail = email
 
+        // 先检查邮箱是否已注册
+        let userExists = await checkUserExists(email: email)
+        if userExists {
+            errorMessage = "该邮箱已注册，请直接登录"
+            print("⚠️ 邮箱已注册: \(email)")
+            isLoading = false
+            return
+        }
+
         do {
-            // 使用 OTP 方式注册，shouldCreateUser: true 表示如果用户不存在则创建
-            try await supabase.auth.signInWithOTP(
+            // 使用 signUp 创建用户，Supabase 会自动发送验证邮件
+            try await supabase.auth.signUp(
                 email: email,
-                shouldCreateUser: true
+                password: password
             )
 
             otpSent = true
@@ -246,10 +268,7 @@ class AuthManager: ObservableObject {
     ///   - email: 用户邮箱
     ///   - code: 验证码
     ///
-    /// 调用 Supabase 的 `verifyOTP`，成功后：
-    /// - `otpVerified = true`
-    /// - `needsPasswordSetup = true`
-    /// - 用户已登录，但 `isAuthenticated` 保持 `false`（需要设置密码）
+    /// 调用 Supabase 的 `verifyOTP`，成功后用户注册完成并登录
     func verifyRegisterOTP(email: String, code: String) async {
         guard !code.isEmpty else {
             errorMessage = "请输入验证码"
@@ -260,22 +279,21 @@ class AuthManager: ObservableObject {
         errorMessage = nil
 
         do {
-            // 验证 OTP，type 使用 .email
-            // verifyOTP 返回 AuthResponse，包含 session 和 user
+            // 验证 OTP，type 使用 .signup（因为是通过 signUp 注册的）
             let response = try await supabase.auth.verifyOTP(
                 email: email,
                 token: code,
-                type: .email
+                type: .signup
             )
 
-            // 验证成功，用户已登录
-            // 从 session 中获取 user
+            // 验证成功，用户已注册并登录
             currentUser = response.session?.user
-            otpVerified = true
-            needsPasswordSetup = true
-            // 注意：isAuthenticated 保持 false，必须设置密码后才能进入主页
+            isAuthenticated = true
 
-            print("✅ 注册验证码验证成功，等待设置密码")
+            // 重置流程状态
+            resetFlowState()
+
+            print("✅ 注册完成: \(email)")
 
         } catch {
             errorMessage = handleAuthError(error)
@@ -366,11 +384,46 @@ class AuthManager: ObservableObject {
             print("✅ 登录成功: \(email)")
 
         } catch {
-            errorMessage = handleAuthError(error)
-            print("❌ 登录失败: \(error)")
+            // 登录失败时，检查用户是否存在
+            let userExists = await checkUserExists(email: email)
+            if !userExists {
+                errorMessage = "用户不存在"
+                print("❌ 登录失败: 用户不存在")
+            } else {
+                errorMessage = "密码错误"
+                print("❌ 登录失败: 密码错误")
+            }
         }
 
         isLoading = false
+    }
+
+    /// 检查用户是否存在
+    /// - Parameter email: 用户邮箱
+    /// - Returns: 用户是否存在
+    private func checkUserExists(email: String) async -> Bool {
+        do {
+            let functionURL = URL(string: "https://umbuyozeejvgjampncuq.supabase.co/functions/v1/check-user-exists")!
+            var request = URLRequest(url: functionURL)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("sb_secret_VOrm2pKfD-edykgv_7QXfA_Oz64pJ9K", forHTTPHeaderField: "apikey")
+
+            let body = ["email": email]
+            request.httpBody = try JSONEncoder().encode(body)
+
+            let (data, _) = try await URLSession.shared.data(for: request)
+
+            struct Response: Codable {
+                let exists: Bool?
+            }
+
+            let response = try JSONDecoder().decode(Response.self, from: data)
+            return response.exists ?? false
+        } catch {
+            print("⚠️ 检查用户存在失败: \(error)")
+            return true  // 出错时假设用户存在，显示密码错误
+        }
     }
 
     // MARK: - ========== 找回密码流程 ==========
@@ -492,7 +545,7 @@ class AuthManager: ObservableObject {
         isLoading = false
     }
 
-    // MARK: - ========== 第三方登录（预留） ==========
+    // MARK: - ========== 第三方登录 ==========
 
     /// Apple 登录
     /// - TODO: 实现 Sign in with Apple
@@ -507,15 +560,200 @@ class AuthManager: ObservableObject {
     }
 
     /// Google 登录
-    /// - TODO: 实现 Sign in with Google
+    /// 使用 GoogleSignIn SDK 获取 ID Token，然后通过 Supabase 验证
     func signInWithGoogle() async {
-        // TODO: 实现 Google 登录
-        // 1. 使用 GoogleSignIn SDK 获取 ID token
-        // 2. 调用 supabase.auth.signInWithIdToken(credentials:)
-        // 3. 设置 isAuthenticated = true
+        #if os(iOS)
+        print("🔵 [Google登录] 开始 Google 登录流程...")
 
-        errorMessage = "Google 登录功能开发中..."
-        print("⚠️ Google 登录功能尚未实现")
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // 1. 获取当前的 presenting view controller
+            print("🔵 [Google登录] 正在获取根视图控制器...")
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let rootViewController = windowScene.windows.first?.rootViewController else {
+                print("❌ [Google登录] 无法获取根视图控制器")
+                errorMessage = "无法启动 Google 登录"
+                isLoading = false
+                return
+            }
+            print("✅ [Google登录] 成功获取根视图控制器")
+
+            // 2. 调用 Google Sign-In
+            print("🔵 [Google登录] 正在调用 Google Sign-In SDK...")
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            print("✅ [Google登录] Google Sign-In 成功")
+
+            // 3. 获取 ID Token
+            print("🔵 [Google登录] 正在获取 ID Token...")
+            guard let idToken = result.user.idToken?.tokenString else {
+                print("❌ [Google登录] 无法获取 ID Token")
+                errorMessage = "Google 登录失败：无法获取令牌"
+                isLoading = false
+                return
+            }
+            print("✅ [Google登录] 成功获取 ID Token: \(String(idToken.prefix(20)))...")
+
+            // 4. 获取 Access Token
+            let accessToken = result.user.accessToken.tokenString
+            print("✅ [Google登录] 成功获取 Access Token: \(String(accessToken.prefix(20)))...")
+
+            // 5. 使用 Supabase 验证 Google ID Token
+            print("🔵 [Google登录] 正在向 Supabase 发送验证请求...")
+            let session = try await supabase.auth.signInWithIdToken(
+                credentials: .init(
+                    provider: .google,
+                    idToken: idToken,
+                    accessToken: accessToken
+                )
+            )
+
+            print("✅ [Google登录] Supabase 验证成功!")
+            print("✅ [Google登录] 用户邮箱: \(session.user.email ?? "未知")")
+            print("✅ [Google登录] 用户ID: \(session.user.id)")
+
+            // 6. 更新状态
+            currentUser = session.user
+            isAuthenticated = true
+            resetFlowState()
+
+            print("🎉 [Google登录] Google 登录流程完成!")
+
+        } catch let error as GIDSignInError {
+            // 处理 Google Sign-In 特定错误
+            print("❌ [Google登录] Google Sign-In 错误: \(error)")
+            switch error.code {
+            case .canceled:
+                print("ℹ️ [Google登录] 用户取消了登录")
+                errorMessage = nil // 用户取消不显示错误
+            case .EMM:
+                errorMessage = "企业移动管理错误"
+            case .hasNoAuthInKeychain:
+                errorMessage = "没有保存的登录信息"
+            case .scopesAlreadyGranted:
+                errorMessage = "权限已授予"
+            default:
+                errorMessage = "Google 登录失败：\(error.localizedDescription)"
+            }
+        } catch {
+            print("❌ [Google登录] 登录失败: \(error)")
+            errorMessage = handleAuthError(error)
+        }
+
+        isLoading = false
+        #else
+        errorMessage = "Google 登录仅支持 iOS 平台"
+        print("⚠️ [Google登录] 当前平台不支持 Google 登录")
+        #endif
+    }
+
+    /// 处理 Google Sign-In URL 回调
+    /// - Parameter url: 回调 URL
+    /// - Returns: 是否成功处理
+    @discardableResult
+    func handleGoogleSignInURL(_ url: URL) -> Bool {
+        #if os(iOS)
+        print("🔵 [Google登录] 收到 URL 回调: \(url)")
+        let handled = GIDSignIn.sharedInstance.handle(url)
+        print("🔵 [Google登录] URL 处理结果: \(handled ? "成功" : "失败")")
+        return handled
+        #else
+        return false
+        #endif
+    }
+
+    // MARK: - ========== 账户管理 ==========
+
+    /// 删除账户
+    /// 调用 Edge Function 删除用户账户
+    /// - Returns: 删除是否成功
+    @discardableResult
+    func deleteAccount() async -> Bool {
+        print("🔴 [删除账户] 开始删除账户流程...")
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // 1. 获取当前会话的 access token
+            print("🔴 [删除账户] 正在获取访问令牌...")
+            let session = try await supabase.auth.session
+            let accessToken = session.accessToken
+            print("✅ [删除账户] 成功获取访问令牌")
+
+            // 2. 构建 Edge Function URL
+            let functionURL = URL(string: "https://umbuyozeejvgjampncuq.supabase.co/functions/v1/delete-account")!
+            print("🔴 [删除账户] 正在调用 Edge Function: \(functionURL)")
+
+            // 3. 创建请求
+            var request = URLRequest(url: functionURL)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("sb_secret_VOrm2pKfD-edykgv_7QXfA_Oz64pJ9K", forHTTPHeaderField: "apikey")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = "{}".data(using: .utf8)  // 添加空 JSON body
+
+            // 4. 发送请求
+            print("🔴 [删除账户] 正在发送删除请求...")
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            // 5. 检查响应状态
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("❌ [删除账户] 无效的响应类型")
+                errorMessage = "删除失败：无效的响应"
+                isLoading = false
+                return false
+            }
+
+            print("🔴 [删除账户] 响应状态码: \(httpResponse.statusCode)")
+
+            // 6. 解析响应
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("🔴 [删除账户] 响应内容: \(responseString)")
+            }
+
+            if httpResponse.statusCode == 200 {
+                print("✅ [删除账户] 账户删除成功!")
+
+                // 7. 清除本地会话
+                print("🔴 [删除账户] 正在清除本地会话...")
+                do {
+                    try await supabase.auth.signOut()
+                    print("✅ [删除账户] 本地会话已清除")
+                } catch {
+                    print("⚠️ [删除账户] 清除本地会话时出错: \(error)")
+                }
+
+                // 8. 重置本地状态
+                currentUser = nil
+                isAuthenticated = false
+                resetFlowState()
+                isLoading = false
+
+                print("🎉 [删除账户] 删除流程完成，即将跳转登录页")
+                return true
+
+            } else {
+                // 解析错误信息
+                if let json = try? JSONDecoder().decode([String: String].self, from: data),
+                   let error = json["error"] {
+                    errorMessage = "删除失败：\(error)"
+                    print("❌ [删除账户] 服务器返回错误: \(error)")
+                } else {
+                    errorMessage = "删除失败：服务器错误 (\(httpResponse.statusCode))"
+                    print("❌ [删除账户] 未知服务器错误")
+                }
+                isLoading = false
+                return false
+            }
+
+        } catch {
+            print("❌ [删除账户] 删除过程出错: \(error)")
+            errorMessage = "删除失败：\(error.localizedDescription)"
+            isLoading = false
+            return false
+        }
     }
 
     // MARK: - ========== 其他方法 ==========
@@ -592,7 +830,7 @@ class AuthManager: ObservableObject {
     /// - Parameter session: 当前会话
     /// - Returns: 是否已过期或即将过期（提前5分钟）
     private func isSessionExpired(_ session: Session) -> Bool {
-        let expiresAt = session.expiresAt ?? 0
+        let expiresAt = session.expiresAt
         let expirationDate = Date(timeIntervalSince1970: TimeInterval(expiresAt))
         let bufferTime: TimeInterval = 5 * 60 // 5分钟缓冲
         return Date().addingTimeInterval(bufferTime) >= expirationDate
