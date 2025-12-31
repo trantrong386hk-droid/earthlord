@@ -55,12 +55,12 @@ struct ProfileTabView: View {
 
             // 加载遮罩
             if isLoggingOut {
-                loadingOverlay(message: "正在退出...")
+                loadingOverlay(message: "正在退出...".localized)
             }
 
             // 删除中遮罩
             if isDeleting {
-                loadingOverlay(message: "正在删除账户...")
+                loadingOverlay(message: "正在删除账户...".localized)
             }
         }
         .alert("退出登录", isPresented: $showLogoutAlert) {
@@ -71,6 +71,7 @@ struct ProfileTabView: View {
         } message: {
             Text("确定要退出当前账号吗？")
         }
+        .id(LanguageManager.shared.refreshID)
         .fullScreenCover(isPresented: $showSettings) {
             SettingsView()
         }
@@ -134,7 +135,7 @@ struct ProfileTabView: View {
             HStack(spacing: 6) {
                 Image(systemName: "shield.checkered")
                     .font(.caption)
-                Text("幸存者 Lv.1")
+                Text("幸存者 Lv.1".localized)
                     .font(.caption.bold())
             }
             .foregroundColor(ApocalypseTheme.primary)
@@ -152,28 +153,28 @@ struct ProfileTabView: View {
     // MARK: - 统计数据
     private var statsSection: some View {
         HStack(spacing: 12) {
-            StatCard(icon: "map", title: "领地", number: "0", unit: "块")
-            StatCard(icon: "building.2", title: "建筑", number: "0", unit: "座")
-            StatCard(icon: "calendar", title: "存活", number: "1", unit: "天")
+            StatCard(icon: "map", title: "领地".localized, number: "0", unit: "块".localized)
+            StatCard(icon: "building.2", title: "建筑".localized, number: "0", unit: "座".localized)
+            StatCard(icon: "calendar", title: "存活".localized, number: "1", unit: "天".localized)
         }
     }
 
     // MARK: - 功能菜单
     private var menuSection: some View {
         VStack(spacing: 2) {
-            MenuRow(icon: "gearshape", title: "设置", showArrow: true) {
+            MenuRow(icon: "gearshape", title: "设置".localized, showArrow: true) {
                 showSettings = true
             }
 
-            MenuRow(icon: "bell", title: "通知", showArrow: true) {
+            MenuRow(icon: "bell", title: "通知".localized, showArrow: true) {
                 // TODO: 跳转通知页
             }
 
-            MenuRow(icon: "questionmark.circle", title: "帮助与反馈", showArrow: true) {
+            MenuRow(icon: "questionmark.circle", title: "帮助与反馈".localized, showArrow: true) {
                 // TODO: 跳转帮助页
             }
 
-            MenuRow(icon: "info.circle", title: "关于", showArrow: true) {
+            MenuRow(icon: "info.circle", title: "关于".localized, showArrow: true) {
                 // TODO: 跳转关于页
             }
         }
@@ -188,7 +189,7 @@ struct ProfileTabView: View {
         } label: {
             HStack {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
-                Text("退出登录")
+                Text("退出登录".localized)
             }
             .font(.headline)
             .foregroundColor(ApocalypseTheme.danger)
@@ -206,7 +207,7 @@ struct ProfileTabView: View {
         } label: {
             HStack {
                 Image(systemName: "trash")
-                Text("删除账户")
+                Text("删除账户".localized)
             }
             .font(.subheadline)
             .foregroundColor(ApocalypseTheme.textMuted)
@@ -226,7 +227,7 @@ struct ProfileTabView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: ApocalypseTheme.primary))
                     .scaleEffect(1.5)
 
-                Text(message)
+                Text(verbatim: message)
                     .font(.subheadline)
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -242,9 +243,9 @@ struct ProfileTabView: View {
     private var displayName: String {
         if let email = authManager.currentUser?.email {
             // 取邮箱 @ 前面的部分作为用户名
-            return email.components(separatedBy: "@").first ?? "幸存者"
+            return email.components(separatedBy: "@").first ?? "幸存者".localized
         }
-        return "幸存者"
+        return "幸存者".localized
     }
 
     // MARK: - 方法
@@ -286,6 +287,7 @@ struct ProfileTabView: View {
 }
 
 // MARK: - 菜单行组件
+/// 注意：调用时需传入已本地化的字符串（使用 .localized）
 struct MenuRow: View {
     let icon: String
     let title: String
@@ -300,7 +302,7 @@ struct MenuRow: View {
                     .foregroundColor(ApocalypseTheme.primary)
                     .frame(width: 24)
 
-                Text(title)
+                Text(verbatim: title)
                     .font(.body)
                     .foregroundColor(ApocalypseTheme.textPrimary)
 
@@ -325,9 +327,9 @@ struct DeleteAccountSheet: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
-    /// 确认文字是否正确
+    /// 确认文字是否正确（支持中英文）
     private var isConfirmTextCorrect: Bool {
-        confirmText == "删除"
+        confirmText == "删除" || confirmText.lowercased() == "delete"
     }
 
     var body: some View {
@@ -343,23 +345,23 @@ struct DeleteAccountSheet: View {
                         .foregroundColor(ApocalypseTheme.danger)
 
                     // 标题
-                    Text("确认删除账户")
+                    Text("确认删除账户".localized)
                         .font(.title3.bold())
                         .foregroundColor(ApocalypseTheme.textPrimary)
 
                     // 说明
-                    Text("此操作不可撤销！删除后所有数据将永久丢失。")
+                    Text("此操作不可撤销！删除后所有数据将永久丢失。".localized)
                         .font(.subheadline)
                         .foregroundColor(ApocalypseTheme.textSecondary)
                         .multilineTextAlignment(.center)
 
                     // 确认输入
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("请输入 \"删除\" 以确认：")
+                        Text("请输入 \"删除\" 以确认：".localized)
                             .font(.subheadline)
                             .foregroundColor(ApocalypseTheme.textSecondary)
 
-                        TextField("输入 删除", text: $confirmText)
+                        TextField("输入 删除".localized, text: $confirmText)
                             .foregroundColor(ApocalypseTheme.textPrimary)
                             .padding()
                             .background(ApocalypseTheme.cardBackground)
@@ -382,7 +384,7 @@ struct DeleteAccountSheet: View {
                         Button {
                             onConfirm()
                         } label: {
-                            Text("永久删除账户")
+                            Text("永久删除账户".localized)
                                 .font(.headline)
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
@@ -399,7 +401,7 @@ struct DeleteAccountSheet: View {
                         Button {
                             onCancel()
                         } label: {
-                            Text("取消")
+                            Text("取消".localized)
                                 .font(.headline)
                                 .foregroundColor(ApocalypseTheme.textSecondary)
                                 .frame(maxWidth: .infinity)

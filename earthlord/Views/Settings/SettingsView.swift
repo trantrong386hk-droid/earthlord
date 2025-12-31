@@ -10,10 +10,14 @@ import SwiftUI
 struct SettingsView: View {
     // MARK: - 属性
     @ObservedObject private var authManager = AuthManager.shared
+    @ObservedObject private var languageManager = LanguageManager.shared
     @Environment(\.dismiss) private var dismiss
 
     /// 是否显示删除账户确认弹窗
     @State private var showDeleteConfirmation: Bool = false
+
+    /// 是否显示语言选择弹窗
+    @State private var showLanguagePicker: Bool = false
 
     /// 是否正在删除
     @State private var isDeleting: Bool = false
@@ -59,7 +63,7 @@ struct SettingsView: View {
                     toastView(message: message)
                 }
             }
-            .navigationTitle("设置")
+            .navigationTitle("设置".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -83,28 +87,38 @@ struct SettingsView: View {
                 )
                 .presentationDetents([.medium])
             }
+            .sheet(isPresented: $showLanguagePicker) {
+                LanguagePickerSheet(
+                    languageManager: languageManager,
+                    onDismiss: {
+                        showLanguagePicker = false
+                    }
+                )
+                .presentationDetents([.height(280)])
+            }
+            .id(languageManager.refreshID)  // 语言切换时刷新视图
         }
     }
 
     // MARK: - 账户设置区域
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("账户")
+            Text("账户".localized)
                 .font(.headline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
                 .padding(.leading, 4)
 
             VStack(spacing: 2) {
-                SettingsRow(icon: "person.circle", title: "个人资料", showArrow: true) {
-                    showToast("功能开发中...")
+                SettingsRow(icon: "person.circle", title: "个人资料".localized, showArrow: true) {
+                    showToast("功能开发中...".localized)
                 }
 
-                SettingsRow(icon: "lock.shield", title: "隐私设置", showArrow: true) {
-                    showToast("功能开发中...")
+                SettingsRow(icon: "lock.shield", title: "隐私设置".localized, showArrow: true) {
+                    showToast("功能开发中...".localized)
                 }
 
-                SettingsRow(icon: "key", title: "修改密码", showArrow: true) {
-                    showToast("功能开发中...")
+                SettingsRow(icon: "key", title: "修改密码".localized, showArrow: true) {
+                    showToast("功能开发中...".localized)
                 }
             }
             .background(ApocalypseTheme.cardBackground)
@@ -115,22 +129,22 @@ struct SettingsView: View {
     // MARK: - 通用设置区域
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("通用")
+            Text("通用".localized)
                 .font(.headline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
                 .padding(.leading, 4)
 
             VStack(spacing: 2) {
-                SettingsRow(icon: "globe", title: "语言", value: "简体中文", showArrow: true) {
-                    showToast("功能开发中...")
+                SettingsRow(icon: "globe", title: "语言".localized, value: languageManager.currentLanguage.displayName, showArrow: true) {
+                    showLanguagePicker = true
                 }
 
-                SettingsRow(icon: "moon", title: "深色模式", value: "跟随系统", showArrow: true) {
-                    showToast("功能开发中...")
+                SettingsRow(icon: "moon", title: "深色模式".localized, value: "跟随系统".localized, showArrow: true) {
+                    showToast("功能开发中...".localized)
                 }
 
-                SettingsRow(icon: "bell.badge", title: "推送通知", showArrow: true) {
-                    showToast("功能开发中...")
+                SettingsRow(icon: "bell.badge", title: "推送通知".localized, showArrow: true) {
+                    showToast("功能开发中...".localized)
                 }
             }
             .background(ApocalypseTheme.cardBackground)
@@ -141,7 +155,7 @@ struct SettingsView: View {
     // MARK: - 危险区域
     private var dangerZoneSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("危险区域")
+            Text("危险区域".localized)
                 .font(.headline)
                 .foregroundColor(ApocalypseTheme.danger)
                 .padding(.leading, 4)
@@ -156,7 +170,7 @@ struct SettingsView: View {
                             .foregroundColor(ApocalypseTheme.danger)
                             .frame(width: 24)
 
-                        Text("删除账户")
+                        Text("删除账户".localized)
                             .font(.body)
                             .foregroundColor(ApocalypseTheme.danger)
 
@@ -173,7 +187,7 @@ struct SettingsView: View {
             .background(ApocalypseTheme.danger.opacity(0.1))
             .cornerRadius(16)
 
-            Text("删除账户后，所有数据将被永久删除且无法恢复。")
+            Text("删除账户后，所有数据将被永久删除且无法恢复。".localized)
                 .font(.caption)
                 .foregroundColor(ApocalypseTheme.textMuted)
                 .padding(.leading, 4)
@@ -405,6 +419,125 @@ struct DeleteAccountConfirmationSheet: View {
             }
             .navigationBarHidden(true)
         }
+    }
+}
+
+// MARK: - 语言选择弹窗
+struct LanguagePickerSheet: View {
+    @ObservedObject var languageManager: LanguageManager
+    let onDismiss: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                ApocalypseTheme.background
+                    .ignoresSafeArea()
+
+                VStack(spacing: 16) {
+                    ForEach(AppLanguage.allCases) { language in
+                        LanguageOptionRow(
+                            language: language,
+                            isSelected: languageManager.currentLanguage == language
+                        ) {
+                            languageManager.setLanguage(language)
+                            // 短暂延迟后关闭，让用户看到选择效果
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                onDismiss()
+                            }
+                        }
+                    }
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("选择语言".localized)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(ApocalypseTheme.textMuted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 语言选项行
+struct LanguageOptionRow: View {
+    let language: AppLanguage
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                // 语言图标
+                languageIcon
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(language.displayName)
+                        .font(.body)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    if language == .system {
+                        Text("根据系统设置自动切换".localized)
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.textMuted)
+                    }
+                }
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(ApocalypseTheme.primary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                isSelected
+                    ? ApocalypseTheme.primary.opacity(0.1)
+                    : ApocalypseTheme.cardBackground
+            )
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected
+                            ? ApocalypseTheme.primary
+                            : Color.clear,
+                        lineWidth: 1.5
+                    )
+            )
+        }
+    }
+
+    /// 语言图标
+    private var languageIcon: some View {
+        Group {
+            switch language {
+            case .system:
+                Image(systemName: "gearshape")
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+            case .zhHans:
+                Text("中")
+                    .fontWeight(.medium)
+                    .foregroundColor(ApocalypseTheme.primary)
+            case .english:
+                Text("En")
+                    .fontWeight(.medium)
+                    .foregroundColor(ApocalypseTheme.primary)
+            }
+        }
+        .frame(width: 32, height: 32)
     }
 }
 

@@ -45,6 +45,7 @@ struct ApocalypseCard<Content: View>: View {
 // MARK: - 预设卡片样式
 
 /// 信息卡片（带图标和标题）
+/// 注意：调用时需传入已本地化的字符串（使用 .localized）
 struct InfoCard: View {
     let icon: String
     let title: String
@@ -75,11 +76,11 @@ struct InfoCard: View {
                     .cornerRadius(8)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
+                    Text(verbatim: title)
                         .font(.subheadline)
                         .foregroundColor(ApocalypseTheme.textSecondary)
 
-                    Text(value)
+                    Text(verbatim: value)
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(ApocalypseTheme.textPrimary)
@@ -92,18 +93,19 @@ struct InfoCard: View {
 }
 
 /// 统计卡片（带数字和单位）
+/// 注意：调用时需传入已本地化的字符串（使用 .localized）
 struct StatCard: View {
     let icon: String
     let title: String
     let number: String
-    let unit: String
+    let unit: String?
     let color: Color
 
     init(
         icon: String,
         title: String,
         number: String,
-        unit: String = "",
+        unit: String? = nil,
         color: Color = ApocalypseTheme.primary
     ) {
         self.icon = icon
@@ -123,19 +125,19 @@ struct StatCard: View {
 
                 // 数值
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(number)
+                    Text(verbatim: number)
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(ApocalypseTheme.textPrimary)
 
-                    if !unit.isEmpty {
-                        Text(unit)
+                    if let unit = unit {
+                        Text(verbatim: unit)
                             .font(.subheadline)
                             .foregroundColor(ApocalypseTheme.textSecondary)
                     }
                 }
 
                 // 标题
-                Text(title)
+                Text(verbatim: title)
                     .font(.caption)
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -145,6 +147,7 @@ struct StatCard: View {
 }
 
 /// 操作卡片（可点击）
+/// 注意：调用时需传入已本地化的字符串（使用 .localized）
 struct ActionCard: View {
     let icon: String
     let title: String
@@ -165,11 +168,11 @@ struct ActionCard: View {
 
                     // 中间文字
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(title)
+                        Text(verbatim: title)
                             .font(.headline)
                             .foregroundColor(ApocalypseTheme.textPrimary)
 
-                        Text(subtitle)
+                        Text(verbatim: subtitle)
                             .font(.caption)
                             .foregroundColor(ApocalypseTheme.textSecondary)
                     }

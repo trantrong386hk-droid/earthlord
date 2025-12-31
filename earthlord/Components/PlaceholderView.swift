@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// 通用占位视图
+/// 注意：调用时需传入已本地化的字符串（使用 .localized）
 struct PlaceholderView: View {
     let icon: String
-    let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
+    let title: String
+    let subtitle: String
 
     var body: some View {
         ZStack {
@@ -16,12 +17,12 @@ struct PlaceholderView: View {
                     .font(.system(size: 60))
                     .foregroundColor(ApocalypseTheme.primary)
 
-                Text(title)
+                Text(verbatim: title)
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(ApocalypseTheme.textPrimary)
 
-                Text(subtitle)
+                Text(verbatim: subtitle)
                     .font(.subheadline)
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }

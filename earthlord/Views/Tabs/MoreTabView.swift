@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MoreTabView: View {
+    @ObservedObject private var languageManager = LanguageManager.shared
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -11,7 +13,7 @@ struct MoreTabView: View {
                     VStack(spacing: 16) {
                         // 开发者工具区域
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("开发者工具")
+                            Text("开发者工具".localized)
                                 .font(.headline)
                                 .foregroundColor(ApocalypseTheme.textPrimary)
                                 .padding(.horizontal, 4)
@@ -28,10 +30,10 @@ struct MoreTabView: View {
                                             .cornerRadius(10)
 
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text("Supabase 连接测试")
+                                            Text("Supabase 连接测试".localized)
                                                 .font(.headline)
                                                 .foregroundColor(ApocalypseTheme.textPrimary)
-                                            Text("测试后端服务连接状态")
+                                            Text("测试后端服务连接状态".localized)
                                                 .font(.caption)
                                                 .foregroundColor(ApocalypseTheme.textSecondary)
                                         }
@@ -48,7 +50,7 @@ struct MoreTabView: View {
 
                         // 设置区域
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("设置")
+                            Text("设置".localized)
                                 .font(.headline)
                                 .foregroundColor(ApocalypseTheme.textPrimary)
                                 .padding(.horizontal, 4)
@@ -56,24 +58,24 @@ struct MoreTabView: View {
 
                             ActionCard(
                                 icon: "gearshape.fill",
-                                title: "通用设置",
-                                subtitle: "语言、通知、隐私"
+                                title: "通用设置".localized,
+                                subtitle: "语言、通知、隐私".localized
                             ) {
                                 print("通用设置")
                             }
 
                             ActionCard(
                                 icon: "person.circle.fill",
-                                title: "账户管理",
-                                subtitle: "登录、注销、数据同步"
+                                title: "账户管理".localized,
+                                subtitle: "登录、注销、数据同步".localized
                             ) {
                                 print("账户管理")
                             }
 
                             ActionCard(
                                 icon: "info.circle.fill",
-                                title: "关于",
-                                subtitle: "版本信息、开发者"
+                                title: "关于".localized,
+                                subtitle: "版本信息、开发者".localized
                             ) {
                                 print("关于")
                             }
@@ -82,9 +84,10 @@ struct MoreTabView: View {
                     .padding(20)
                 }
             }
-            .navigationTitle("更多")
+            .navigationTitle(Text("更多".localized))
             .navigationBarTitleDisplayMode(.large)
         }
+        .id(languageManager.refreshID)
     }
 }
 

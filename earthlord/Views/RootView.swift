@@ -5,6 +5,9 @@ struct RootView: View {
     /// 认证管理器
     @StateObject private var authManager = AuthManager.shared
 
+    /// 语言管理器
+    @EnvironmentObject var languageManager: LanguageManager
+
     /// 启动页是否完成
     @State private var splashFinished = false
 
@@ -24,6 +27,7 @@ struct RootView: View {
                     .transition(.opacity)
             }
         }
+        .id(languageManager.refreshID)  // 语言切换时刷新整个视图树
         .animation(.easeInOut(duration: 0.3), value: splashFinished)
         .animation(.easeInOut(duration: 0.3), value: authManager.isAuthenticated)
     }
@@ -31,4 +35,5 @@ struct RootView: View {
 
 #Preview {
     RootView()
+        .environmentObject(LanguageManager.shared)
 }
