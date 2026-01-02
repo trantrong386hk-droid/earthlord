@@ -197,6 +197,17 @@
         }
       }
     },
+    "前往设置" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to Settings"
+          }
+        }
+      }
+    },
     "功能开发中..." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -403,6 +414,17 @@
         }
       }
     },
+    "当前坐标" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Location"
+          }
+        }
+      }
+    },
     "忘记密码？" : {
       "localizations" : {
         "en" : {
@@ -547,6 +569,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deleting account..."
+          }
+        }
+      }
+    },
+    "正在请求定位权限..." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requesting location permission..."
           }
         }
       }
@@ -1018,6 +1051,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Privacy Settings"
+          }
+        }
+      }
+    },
+    "需要定位权限" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location Permission Required"
           }
         }
       }
