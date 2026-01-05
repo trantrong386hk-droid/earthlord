@@ -21,7 +21,7 @@ struct ContentView: View {
                     .padding(.top, 20)
 
                 NavigationLink("进入测试页") {
-                    TestView()
+                    TestMenuView()
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.top, 30)

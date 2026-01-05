@@ -46,6 +46,35 @@ struct MoreTabView: View {
                                     }
                                 }
                             }
+
+                            // 圈地测试入口
+                            NavigationLink(destination: TerritoryTestView()) {
+                                ApocalypseCard {
+                                    HStack(spacing: 16) {
+                                        Image(systemName: "location.circle")
+                                            .font(.title)
+                                            .foregroundColor(ApocalypseTheme.success)
+                                            .frame(width: 50, height: 50)
+                                            .background(ApocalypseTheme.success.opacity(0.15))
+                                            .cornerRadius(10)
+
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("圈地功能测试".localized)
+                                                .font(.headline)
+                                                .foregroundColor(ApocalypseTheme.textPrimary)
+                                            Text("GPS定位、路径追踪、调试日志".localized)
+                                                .font(.caption)
+                                                .foregroundColor(ApocalypseTheme.textSecondary)
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundColor(ApocalypseTheme.textMuted)
+                                    }
+                                }
+                            }
                         }
 
                         // 设置区域
