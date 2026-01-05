@@ -3,11 +3,15 @@
 //  earthlord
 //
 //  MKMapView 的 SwiftUI 包装器
-//  实现末世风格地图显示、用户位置追踪
+//  实现末世风格地图显示、用户位置追踪、轨迹渲染
 //
 
 import SwiftUI
 import MapKit
+
+// MARK: - 轨迹 Overlay 标识
+/// 自定义 Overlay 类，用于区分轨迹线
+class TrackingPolyline: MKPolyline {}
 
 // MARK: - 地图视图包装器
 /// 将 MKMapView 包装为 SwiftUI 视图
@@ -23,6 +27,17 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     /// 是否需要重新居中到用户位置
     @Binding var shouldRecenter: Bool
+
+    // MARK: - 轨迹追踪属性
+
+    /// 追踪路径坐标数组（WGS-84 原始坐标）
+    var trackingPath: [CLLocationCoordinate2D]
+
+    /// 路径更新版本号（触发 SwiftUI 重绘）
+    var pathUpdateVersion: Int
+
+    /// 是否正在追踪
+    var isTracking: Bool
 
     // MARK: - UIViewRepresentable
 
@@ -80,6 +95,44 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             print("🗺️ [地图视图] 重新居中到用户位置")
         }
+
+        // 更新轨迹显示
+        updateTrackingPath(on: mapView, context: context)
+    }
+
+    // MARK: - 轨迹渲染
+
+    /// 更新轨迹路径显示
+    private func updateTrackingPath(on mapView: MKMapView, context: Context) {
+        // 检查版本是否变化
+        guard context.coordinator.lastPathVersion != pathUpdateVersion else {
+            return
+        }
+
+        // 更新版本号
+        context.coordinator.lastPathVersion = pathUpdateVersion
+
+        // 移除旧的轨迹 Overlay
+        let existingOverlays = mapView.overlays.filter { $0 is TrackingPolyline }
+        mapView.removeOverlays(existingOverlays)
+
+        // 如果没有路径点，直接返回
+        guard trackingPath.count >= 2 else {
+            print("🛤️ [轨迹渲染] 路径点不足，跳过渲染")
+            return
+        }
+
+        // ⭐ 关键：转换坐标（WGS-84 → GCJ-02）
+        // 中国地图使用 GCJ-02 坐标系，直接用 GPS 坐标会偏移 100-500 米！
+        let gcjCoordinates = CoordinateConverter.convertPath(trackingPath)
+
+        // 创建 Polyline
+        let polyline = TrackingPolyline(coordinates: gcjCoordinates, count: gcjCoordinates.count)
+
+        // 添加到地图
+        mapView.addOverlay(polyline)
+
+        print("🛤️ [轨迹渲染] 绘制轨迹，共 \(gcjCoordinates.count) 个点")
     }
 
     /// 创建 Coordinator
@@ -115,6 +168,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         /// 首次居中标志（防止重复居中）
         private var hasInitialCentered = false
+
+        /// 路径版本号（用于判断是否需要重绘）
+        var lastPathVersion: Int = -1
 
         init(_ parent: MapViewRepresentable) {
             self.parent = parent
@@ -179,5 +235,41 @@ struct MapViewRepresentable: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, didFailToLocateUserWithError error: Error) {
             print("🗺️ [地图视图] 定位失败: \(error.localizedDescription)")
         }
+
+        // MARK: - Overlay 渲染（关键！）
+
+        /// ⭐ 关键方法：为 Overlay 提供渲染器
+        /// 如果不实现这个方法，Polyline 不会显示！
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            // 轨迹线渲染
+            if let polyline = overlay as? TrackingPolyline {
+                let renderer = MKPolylineRenderer(polyline: polyline)
+
+                // 轨迹样式：青色
+                renderer.strokeColor = UIColor.cyan
+                renderer.lineWidth = 5.0
+                renderer.lineCap = .round
+                renderer.lineJoin = .round
+
+                print("🛤️ [轨迹渲染] 创建渲染器")
+                return renderer
+            }
+
+            // 默认渲染器
+            return MKOverlayRenderer(overlay: overlay)
+        }
     }
+}
+
+// MARK: - Preview
+
+#Preview {
+    MapViewRepresentable(
+        userLocation: .constant(nil),
+        hasLocatedUser: .constant(false),
+        shouldRecenter: .constant(false),
+        trackingPath: [],
+        pathUpdateVersion: 0,
+        isTracking: false
+    )
 }

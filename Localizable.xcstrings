@@ -4,6 +4,9 @@
     "" : {
 
     },
+    "%lld" : {
+
+    },
     "%lld秒后可重发" : {
       "localizations" : {
         "en" : {
@@ -133,6 +136,17 @@
         }
       }
     },
+    "停止圈地" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Claiming"
+          }
+        }
+      }
+    },
     "充足" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -258,6 +272,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claim New Territory"
+          }
+        }
+      }
+    },
+    "圈地完成" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claim Complete"
           }
         }
       }
@@ -403,6 +428,17 @@
         }
       }
     },
+    "开始圈地" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Claiming"
+          }
+        }
+      }
+    },
     "开始新的开拓之旅" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -453,6 +489,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Total Area"
+          }
+        }
+      }
+    },
+    "恭喜！您已成功圈定一块领地，共记录 %lld 个点。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Congratulations! You have successfully claimed a territory with %lld points."
           }
         }
       }
@@ -569,6 +616,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deleting account..."
+          }
+        }
+      }
+    },
+    "正在圈地..." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claiming territory..."
           }
         }
       }
@@ -741,6 +799,17 @@
         }
       }
     },
+    "确认" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm"
+          }
+        }
+      }
+    },
     "确认删除账户" : {
       "localizations" : {
         "en" : {
@@ -886,6 +955,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Follow System"
+          }
+        }
+      }
+    },
+    "路径未闭合，请确保起点和终点距离在 20 米以内。共记录 %lld 个点。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path not closed. Ensure start and end points are within 20 meters. Recorded %lld points."
           }
         }
       }

@@ -3,7 +3,7 @@
 //  earthlord
 //
 //  地图页面
-//  显示末世风格地图，用户位置追踪
+//  显示末世风格地图，用户位置追踪，路径圈地
 //
 
 import SwiftUI
@@ -28,6 +28,9 @@ struct MapTabView: View {
 
     /// 是否需要重新居中
     @State private var shouldRecenter: Bool = false
+
+    /// 是否显示圈地确认弹窗
+    @State private var showClaimAlert: Bool = false
 
     // MARK: - Body
 
@@ -65,7 +68,10 @@ struct MapTabView: View {
             MapViewRepresentable(
                 userLocation: $userLocation,
                 hasLocatedUser: $hasLocatedUser,
-                shouldRecenter: $shouldRecenter
+                shouldRecenter: $shouldRecenter,
+                trackingPath: locationManager.pathCoordinates,
+                pathUpdateVersion: locationManager.pathUpdateVersion,
+                isTracking: locationManager.isTracking
             )
             .ignoresSafeArea()
 
@@ -80,6 +86,9 @@ struct MapTabView: View {
                     VStack(spacing: 12) {
                         // 定位按钮
                         locationButton
+
+                        // 圈地按钮
+                        claimTerritoryButton
 
                         // 坐标信息卡片
                         if let location = userLocation {
@@ -112,6 +121,61 @@ struct MapTabView: View {
                 .background(ApocalypseTheme.cardBackground.opacity(0.95))
                 .cornerRadius(25)
                 .shadow(color: Color.black.opacity(0.3), radius: 5)
+        }
+    }
+
+    // MARK: - 圈地按钮
+
+    private var claimTerritoryButton: some View {
+        Button {
+            if locationManager.isTracking {
+                // 停止追踪，显示确认弹窗
+                locationManager.stopPathTracking()
+
+                // 如果路径有效，显示确认弹窗
+                if locationManager.pathPointCount >= 3 {
+                    showClaimAlert = true
+                }
+            } else {
+                // 开始追踪
+                locationManager.startPathTracking()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: locationManager.isTracking ? "stop.fill" : "flag.fill")
+                    .font(.title3)
+
+                Text(locationManager.isTracking ? "停止圈地".localized : "开始圈地".localized)
+                    .font(.subheadline.bold())
+
+                // 追踪中显示当前点数
+                if locationManager.isTracking {
+                    Text("\(locationManager.pathPointCount)")
+                        .font(.caption.bold())
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.3))
+                        .cornerRadius(8)
+                }
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(locationManager.isTracking ? ApocalypseTheme.danger : ApocalypseTheme.primary)
+            .cornerRadius(25)
+            .shadow(color: Color.black.opacity(0.3), radius: 5)
+        }
+        .alert("圈地完成".localized, isPresented: $showClaimAlert) {
+            Button("确认".localized, role: .cancel) {
+                // 清除路径，准备下一次圈地
+                locationManager.clearPath()
+            }
+        } message: {
+            if locationManager.isPathClosed {
+                Text(verbatim: String(format: "恭喜！您已成功圈定一块领地，共记录 %lld 个点。".localized, locationManager.pathPointCount))
+            } else {
+                Text(verbatim: String(format: "路径未闭合，请确保起点和终点距离在 20 米以内。共记录 %lld 个点。".localized, locationManager.pathPointCount))
+            }
         }
     }
 
