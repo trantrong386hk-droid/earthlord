@@ -71,7 +71,8 @@ struct MapTabView: View {
                 shouldRecenter: $shouldRecenter,
                 trackingPath: locationManager.pathCoordinates,
                 pathUpdateVersion: locationManager.pathUpdateVersion,
-                isTracking: locationManager.isTracking
+                isTracking: locationManager.isTracking,
+                isPathClosed: locationManager.isPathClosed
             )
             .ignoresSafeArea()
 
@@ -103,6 +104,43 @@ struct MapTabView: View {
             // 加载中状态
             if locationManager.isNotDetermined {
                 loadingOverlay
+            }
+
+            // 速度警告横幅
+            if locationManager.speedWarning != nil {
+                speedWarningBanner
+            }
+        }
+    }
+
+    // MARK: - 速度警告横幅
+
+    private var speedWarningBanner: some View {
+        VStack {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+
+                Text(locationManager.speedWarning ?? "")
+                    .font(.subheadline.bold())
+
+                Spacer()
+            }
+            .foregroundColor(.white)
+            .padding()
+            .background(locationManager.isTracking ? ApocalypseTheme.warning : ApocalypseTheme.danger)
+            .cornerRadius(12)
+            .padding(.horizontal, 16)
+            .padding(.top, 60)  // 避开状态栏
+
+            Spacer()
+        }
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .animation(.easeInOut(duration: 0.3), value: locationManager.speedWarning != nil)
+        .onAppear {
+            // 3 秒后自动隐藏警告
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                locationManager.speedWarning = nil
             }
         }
     }
@@ -174,7 +212,7 @@ struct MapTabView: View {
             if locationManager.isPathClosed {
                 Text(verbatim: String(format: "恭喜！您已成功圈定一块领地，共记录 %lld 个点。".localized, locationManager.pathPointCount))
             } else {
-                Text(verbatim: String(format: "路径未闭合，请确保起点和终点距离在 20 米以内。共记录 %lld 个点。".localized, locationManager.pathPointCount))
+                Text(verbatim: String(format: "路径未闭合，请确保起点和终点距离在 30 米以内，且至少记录 10 个点。共记录 %lld 个点。".localized, locationManager.pathPointCount))
             }
         }
     }

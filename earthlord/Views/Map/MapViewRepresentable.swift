@@ -13,6 +13,9 @@ import MapKit
 /// 自定义 Overlay 类，用于区分轨迹线
 class TrackingPolyline: MKPolyline {}
 
+/// 自定义 Overlay 类，用于区分领地多边形
+class TerritoryPolygon: MKPolygon {}
+
 // MARK: - 地图视图包装器
 /// 将 MKMapView 包装为 SwiftUI 视图
 struct MapViewRepresentable: UIViewRepresentable {
@@ -38,6 +41,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     /// 是否正在追踪
     var isTracking: Bool
+
+    /// 路径是否闭合
+    var isPathClosed: Bool
 
     // MARK: - UIViewRepresentable
 
@@ -112,8 +118,11 @@ struct MapViewRepresentable: UIViewRepresentable {
         // 更新版本号
         context.coordinator.lastPathVersion = pathUpdateVersion
 
-        // 移除旧的轨迹 Overlay
-        let existingOverlays = mapView.overlays.filter { $0 is TrackingPolyline }
+        // 更新闭合状态（用于轨迹变色）
+        context.coordinator.isPathClosed = isPathClosed
+
+        // 移除旧的轨迹 Overlay 和多边形
+        let existingOverlays = mapView.overlays.filter { $0 is TrackingPolyline || $0 is TerritoryPolygon }
         mapView.removeOverlays(existingOverlays)
 
         // 如果没有路径点，直接返回
@@ -126,13 +135,20 @@ struct MapViewRepresentable: UIViewRepresentable {
         // 中国地图使用 GCJ-02 坐标系，直接用 GPS 坐标会偏移 100-500 米！
         let gcjCoordinates = CoordinateConverter.convertPath(trackingPath)
 
+        // 如果已闭环且点数足够，先添加多边形填充
+        if isPathClosed && gcjCoordinates.count >= 3 {
+            let polygon = TerritoryPolygon(coordinates: gcjCoordinates, count: gcjCoordinates.count)
+            mapView.addOverlay(polygon)
+            print("🏴 [领地渲染] 绘制领地多边形，共 \(gcjCoordinates.count) 个点")
+        }
+
         // 创建 Polyline
         let polyline = TrackingPolyline(coordinates: gcjCoordinates, count: gcjCoordinates.count)
 
-        // 添加到地图
+        // 添加到地图（轨迹线在多边形上层）
         mapView.addOverlay(polyline)
 
-        print("🛤️ [轨迹渲染] 绘制轨迹，共 \(gcjCoordinates.count) 个点")
+        print("🛤️ [轨迹渲染] 绘制轨迹，共 \(gcjCoordinates.count) 个点，闭合: \(isPathClosed)")
     }
 
     /// 创建 Coordinator
@@ -171,6 +187,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         /// 路径版本号（用于判断是否需要重绘）
         var lastPathVersion: Int = -1
+
+        /// 路径是否闭合（用于轨迹变色）
+        var isPathClosed: Bool = false
 
         init(_ parent: MapViewRepresentable) {
             self.parent = parent
@@ -241,17 +260,32 @@ struct MapViewRepresentable: UIViewRepresentable {
         /// ⭐ 关键方法：为 Overlay 提供渲染器
         /// 如果不实现这个方法，Polyline 不会显示！
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            // 领地多边形渲染
+            if let polygon = overlay as? TerritoryPolygon {
+                let renderer = MKPolygonRenderer(polygon: polygon)
+
+                // 填充色：半透明绿色
+                renderer.fillColor = UIColor.systemGreen.withAlphaComponent(0.25)
+                // 边框色：绿色
+                renderer.strokeColor = UIColor.systemGreen
+                renderer.lineWidth = 2.0
+
+                print("🏴 [领地渲染] 创建多边形渲染器")
+                return renderer
+            }
+
             // 轨迹线渲染
             if let polyline = overlay as? TrackingPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
-                // 轨迹样式：青色
-                renderer.strokeColor = UIColor.cyan
+                // 轨迹样式：根据闭合状态变色
+                // 未闭环：青色，已闭环：绿色
+                renderer.strokeColor = isPathClosed ? UIColor.systemGreen : UIColor.systemCyan
                 renderer.lineWidth = 5.0
                 renderer.lineCap = .round
                 renderer.lineJoin = .round
 
-                print("🛤️ [轨迹渲染] 创建渲染器")
+                print("🛤️ [轨迹渲染] 创建渲染器，闭合: \(isPathClosed)")
                 return renderer
             }
 
@@ -270,6 +304,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         shouldRecenter: .constant(false),
         trackingPath: [],
         pathUpdateVersion: 0,
-        isTracking: false
+        isTracking: false,
+        isPathClosed: false
     )
 }
