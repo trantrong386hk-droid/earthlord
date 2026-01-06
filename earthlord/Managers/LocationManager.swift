@@ -89,6 +89,9 @@ class LocationManager: NSObject, ObservableObject {
     /// 是否已记录闭环成功（防止重复记录）
     private var hasLoggedClosure: Bool = false
 
+    /// 连续超速次数（用于区分GPS漂移和真正超速）
+    private var consecutiveOverSpeedCount: Int = 0
+
     // MARK: - 常量
 
     /// 最小采点距离（米）
@@ -108,6 +111,15 @@ class LocationManager: NSObject, ObservableObject {
 
     /// 停止追踪速度阈值（km/h）
     private let stopSpeedThreshold: Double = 30.0
+
+    /// GPS漂移判定阈值（km/h）- 超过此值视为GPS漂移而非真实移动
+    private let gpsDriftThreshold: Double = 50.0
+
+    /// 触发警告所需的连续超速次数
+    private let warningConsecutiveCount: Int = 2
+
+    /// 触发停止所需的连续超速次数
+    private let stopConsecutiveCount: Int = 2
 
     // MARK: - 计算属性
 
@@ -241,6 +253,7 @@ class LocationManager: NSObject, ObservableObject {
         isOverSpeed = false
         lastLocationTimestamp = nil
         lastRecordedLocation = nil
+        consecutiveOverSpeedCount = 0
 
         // 确保定位已开启
         if !isLocating {
@@ -420,7 +433,7 @@ class LocationManager: NSObject, ObservableObject {
 
     /// 验证移动速度
     /// - Parameter newLocation: 新位置
-    /// - Returns: true 表示速度正常，false 表示超速
+    /// - Returns: true 表示速度正常，false 表示超速或GPS漂移
     private func validateMovementSpeed(newLocation: CLLocation) -> Bool {
         // 第一个点，记录时间戳并返回正常
         guard let lastLocation = lastRecordedLocation,
@@ -441,35 +454,55 @@ class LocationManager: NSObject, ObservableObject {
         let speedMps = distance / timeInterval  // 米/秒
         let speedKmh = speedMps * 3.6           // 转换为 km/h
 
-        print("🚗 [速度检测] 速度: \(String(format: "%.1f", speedKmh)) km/h")
+        print("🚗 [速度检测] 速度: \(String(format: "%.1f", speedKmh)) km/h，连续超速: \(consecutiveOverSpeedCount)")
 
         // 更新记录
         lastRecordedLocation = newLocation
         lastLocationTimestamp = Date()
 
-        // 检查是否超过停止阈值
+        // 1. GPS漂移检测：速度超过 50 km/h 视为GPS漂移，忽略该点
+        if speedKmh > gpsDriftThreshold {
+            print("🚗 [速度检测] 🛰️ GPS漂移（\(String(format: "%.0f", speedKmh)) km/h），忽略该点")
+            TerritoryLogger.shared.log("GPS漂移检测：\(String(format: "%.0f", speedKmh)) km/h，已忽略", type: .warning)
+            // 不增加连续超速计数，因为这是GPS问题
+            return false
+        }
+
+        // 2. 严重超速检测（> 30 km/h）
         if speedKmh > stopSpeedThreshold {
-            speedWarning = "速度过快（\(String(format: "%.0f", speedKmh)) km/h），已停止追踪"
-            isOverSpeed = true
-            print("🚗 [速度检测] ⛔ 严重超速！自动停止追踪")
-            TerritoryLogger.shared.log("严重超速 \(String(format: "%.0f", speedKmh)) km/h，自动停止追踪", type: .error)
-            stopPathTracking()
+            consecutiveOverSpeedCount += 1
+            print("🚗 [速度检测] ⚠️ 严重超速 \(consecutiveOverSpeedCount)/\(stopConsecutiveCount)")
+
+            if consecutiveOverSpeedCount >= stopConsecutiveCount {
+                speedWarning = "速度过快（\(String(format: "%.0f", speedKmh)) km/h），已停止追踪"
+                isOverSpeed = true
+                print("🚗 [速度检测] ⛔ 连续严重超速！自动停止追踪")
+                TerritoryLogger.shared.log("连续严重超速 \(String(format: "%.0f", speedKmh)) km/h，自动停止追踪", type: .error)
+                stopPathTracking()
+            }
             return false
         }
 
-        // 检查是否超过警告阈值
+        // 3. 一般超速检测（> 15 km/h）
         if speedKmh > warningSpeedThreshold {
-            speedWarning = "移动速度过快（\(String(format: "%.0f", speedKmh)) km/h），请步行"
-            isOverSpeed = true
-            print("🚗 [速度检测] ⚠️ 速度警告")
-            TerritoryLogger.shared.log("速度警告 \(String(format: "%.0f", speedKmh)) km/h，请步行", type: .warning)
+            consecutiveOverSpeedCount += 1
+            print("🚗 [速度检测] ⚠️ 超速 \(consecutiveOverSpeedCount)/\(warningConsecutiveCount)")
+
+            if consecutiveOverSpeedCount >= warningConsecutiveCount {
+                speedWarning = "移动速度过快（\(String(format: "%.0f", speedKmh)) km/h），请步行"
+                isOverSpeed = true
+                print("🚗 [速度检测] ⚠️ 连续超速警告")
+                TerritoryLogger.shared.log("连续超速警告 \(String(format: "%.0f", speedKmh)) km/h，请步行", type: .warning)
+            }
             return false
         }
 
-        // 速度正常，清除警告
+        // 4. 速度正常，重置计数器和警告
+        consecutiveOverSpeedCount = 0
         if isOverSpeed {
             speedWarning = nil
             isOverSpeed = false
+            print("🚗 [速度检测] ✅ 速度恢复正常")
         }
 
         return true
