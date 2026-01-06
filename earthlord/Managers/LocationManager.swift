@@ -47,6 +47,14 @@ class LocationManager: NSObject, ObservableObject {
     /// 路径是否闭合（用于圈地判断）
     @Published var isPathClosed: Bool = false
 
+    // MARK: - 发布属性（统计相关）
+
+    /// 追踪时长（秒）
+    @Published var trackingDuration: TimeInterval = 0
+
+    /// 累计距离（米）
+    @Published var totalDistance: Double = 0
+
     // MARK: - 发布属性（速度检测相关）
 
     /// 速度警告信息
@@ -65,6 +73,12 @@ class LocationManager: NSObject, ObservableObject {
 
     /// 路径采点定时器
     private var pathUpdateTimer: Timer?
+
+    /// 时长更新定时器
+    private var durationTimer: Timer?
+
+    /// 追踪开始时间
+    private var trackingStartTime: Date?
 
     /// 上次位置时间戳（用于速度计算）
     private var lastLocationTimestamp: Date?
@@ -217,6 +231,11 @@ class LocationManager: NSObject, ObservableObject {
         isPathClosed = false
         hasLoggedClosure = false  // 重置闭环日志标记
 
+        // 重置统计数据
+        trackingDuration = 0
+        totalDistance = 0
+        trackingStartTime = Date()
+
         // 清除速度检测状态
         speedWarning = nil
         isOverSpeed = false
@@ -233,10 +252,17 @@ class LocationManager: NSObject, ObservableObject {
             addPathPoint(location.coordinate)
         }
 
-        // 启动定时器，每2秒检查一次
+        // 启动路径采点定时器，每2秒检查一次
         pathUpdateTimer = Timer.scheduledTimer(withTimeInterval: trackingInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.recordPathPoint()
+            }
+        }
+
+        // 启动时长更新定时器，每秒更新
+        durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateTrackingDuration()
             }
         }
     }
@@ -249,11 +275,13 @@ class LocationManager: NSObject, ObservableObject {
         }
 
         print("📍 [路径追踪] 停止追踪，共记录 \(pathCoordinates.count) 个点")
-        TerritoryLogger.shared.log("停止路径追踪，共 \(pathCoordinates.count) 个点", type: .info)
+        TerritoryLogger.shared.log("停止路径追踪，共 \(pathCoordinates.count) 个点，距离 \(String(format: "%.0f", totalDistance)) 米", type: .info)
 
         // 停止定时器
         pathUpdateTimer?.invalidate()
         pathUpdateTimer = nil
+        durationTimer?.invalidate()
+        durationTimer = nil
 
         // 设置追踪状态
         isTracking = false
@@ -268,9 +296,33 @@ class LocationManager: NSObject, ObservableObject {
         pathCoordinates.removeAll()
         pathUpdateVersion += 1
         isPathClosed = false
+        trackingDuration = 0
+        totalDistance = 0
+    }
+
+    /// 格式化时长为 mm:ss 格式
+    var formattedDuration: String {
+        let minutes = Int(trackingDuration) / 60
+        let seconds = Int(trackingDuration) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+
+    /// 格式化距离（米）
+    var formattedDistance: String {
+        if totalDistance >= 1000 {
+            return String(format: "%.1f 公里", totalDistance / 1000)
+        } else {
+            return String(format: "%.0f 米", totalDistance)
+        }
     }
 
     // MARK: - 私有方法（路径追踪）
+
+    /// 更新追踪时长
+    private func updateTrackingDuration() {
+        guard let startTime = trackingStartTime else { return }
+        trackingDuration = Date().timeIntervalSince(startTime)
+    }
 
     /// 定时器回调：判断是否记录新点
     private func recordPathPoint() {
@@ -314,6 +366,14 @@ class LocationManager: NSObject, ObservableObject {
 
     /// 添加路径点
     private func addPathPoint(_ coordinate: CLLocationCoordinate2D) {
+        // 计算与上一个点的距离并累加
+        if let lastCoordinate = pathCoordinates.last {
+            let lastLocation = CLLocation(latitude: lastCoordinate.latitude, longitude: lastCoordinate.longitude)
+            let newLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            let distance = newLocation.distance(from: lastLocation)
+            totalDistance += distance
+        }
+
         pathCoordinates.append(coordinate)
         pathUpdateVersion += 1
         print("📍 [路径追踪] 记录点 #\(pathCoordinates.count): \(coordinate.latitude), \(coordinate.longitude)")

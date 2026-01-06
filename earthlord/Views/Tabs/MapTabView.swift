@@ -76,6 +76,27 @@ struct MapTabView: View {
             )
             .ignoresSafeArea()
 
+            // 顶部信息卡片
+            VStack(spacing: 12) {
+                // 圈地信息卡片（追踪时显示）
+                if locationManager.isTracking {
+                    trackingInfoCard
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                // 速度警告卡片
+                if locationManager.speedWarning != nil {
+                    speedWarningCard
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 60)  // 避开状态栏
+            .animation(.easeInOut(duration: 0.3), value: locationManager.isTracking)
+            .animation(.easeInOut(duration: 0.3), value: locationManager.speedWarning != nil)
+
             // 右下角控制按钮
             VStack {
                 Spacer()
@@ -105,44 +126,121 @@ struct MapTabView: View {
             if locationManager.isNotDetermined {
                 loadingOverlay
             }
-
-            // 速度警告横幅
-            if locationManager.speedWarning != nil {
-                speedWarningBanner
-            }
         }
     }
 
-    // MARK: - 速度警告横幅
+    // MARK: - 圈地信息卡片
 
-    private var speedWarningBanner: some View {
-        VStack {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title3)
+    private var trackingInfoCard: some View {
+        VStack(spacing: 12) {
+            // 标题栏
+            HStack {
+                // 红点 + 标题
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 10, height: 10)
 
-                Text(locationManager.speedWarning ?? "")
-                    .font(.subheadline.bold())
+                    Text("正在圈地".localized)
+                        .font(.headline)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                }
 
                 Spacer()
+
+                // 关闭按钮
+                Button {
+                    locationManager.stopPathTracking()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption.bold())
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                        .frame(width: 24, height: 24)
+                        .background(ApocalypseTheme.textMuted.opacity(0.3))
+                        .clipShape(Circle())
+                }
             }
-            .foregroundColor(.white)
-            .padding()
-            .background(locationManager.isTracking ? ApocalypseTheme.warning : ApocalypseTheme.danger)
-            .cornerRadius(12)
-            .padding(.horizontal, 16)
-            .padding(.top, 60)  // 避开状态栏
+
+            // 统计数据
+            HStack(spacing: 0) {
+                // 时长
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("时长".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                    Text(locationManager.formattedDuration)
+                        .font(.title2.bold().monospacedDigit())
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // 距离
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("距离".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                    Text(locationManager.formattedDistance)
+                        .font(.title2.bold())
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // 坐标点
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("坐标点".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                    Text("\(locationManager.pathPointCount)")
+                        .font(.title2.bold().monospacedDigit())
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(16)
+        .background(ApocalypseTheme.cardBackground.opacity(0.95))
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.2), radius: 8)
+    }
+
+    // MARK: - 速度警告卡片
+
+    private var speedWarningCard: some View {
+        HStack(spacing: 12) {
+            // 警告图标
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.title2)
+                .foregroundColor(ApocalypseTheme.warning)
+
+            // 文字内容
+            VStack(alignment: .leading, spacing: 2) {
+                Text("速度警告".localized)
+                    .font(.subheadline.bold())
+                    .foregroundColor(ApocalypseTheme.textPrimary)
+
+                Text(locationManager.speedWarning ?? "")
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+            }
 
             Spacer()
-        }
-        .transition(.move(edge: .top).combined(with: .opacity))
-        .animation(.easeInOut(duration: 0.3), value: locationManager.speedWarning != nil)
-        .onAppear {
-            // 3 秒后自动隐藏警告
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+
+            // 关闭按钮
+            Button {
                 locationManager.speedWarning = nil
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.bold())
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+                    .frame(width: 24, height: 24)
+                    .background(ApocalypseTheme.textMuted.opacity(0.3))
+                    .clipShape(Circle())
             }
         }
+        .padding(16)
+        .background(ApocalypseTheme.cardBackground.opacity(0.95))
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.2), radius: 8)
     }
 
     // MARK: - 定位按钮
