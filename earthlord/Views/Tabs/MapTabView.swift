@@ -32,6 +32,9 @@ struct MapTabView: View {
     /// 是否显示圈地确认弹窗
     @State private var showClaimAlert: Bool = false
 
+    /// 是否显示验证结果横幅
+    @State private var showValidationBanner: Bool = false
+
     // MARK: - Body
 
     var body: some View {
@@ -125,6 +128,33 @@ struct MapTabView: View {
             // 加载中状态
             if locationManager.isNotDetermined {
                 loadingOverlay
+            }
+
+            // 验证结果横幅（在最上层）
+            if showValidationBanner {
+                VStack {
+                    validationResultBanner
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    Spacer()
+                }
+                .animation(.easeInOut(duration: 0.3), value: showValidationBanner)
+            }
+        }
+        // 监听闭环状态，闭环后根据验证结果显示横幅
+        .onReceive(locationManager.$isPathClosed) { isClosed in
+            if isClosed {
+                // 闭环后延迟一点点，等待验证结果
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation {
+                        showValidationBanner = true
+                    }
+                    // 3 秒后自动隐藏
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        withAnimation {
+                            showValidationBanner = false
+                        }
+                    }
+                }
             }
         }
     }
@@ -241,6 +271,36 @@ struct MapTabView: View {
         .background(ApocalypseTheme.cardBackground.opacity(0.95))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.2), radius: 8)
+    }
+
+    // MARK: - 验证结果横幅
+
+    /// 验证结果横幅（根据验证结果显示成功或失败）
+    private var validationResultBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: locationManager.territoryValidationPassed
+                  ? "checkmark.circle.fill"
+                  : "xmark.circle.fill")
+                .font(.body)
+
+            if locationManager.territoryValidationPassed {
+                Text("圈地成功！领地面积: \(String(format: "%.0f", locationManager.calculatedArea))m²")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            } else {
+                Text(locationManager.territoryValidationError ?? "验证失败")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(locationManager.territoryValidationPassed ? Color.green : Color.red)
+        .cornerRadius(12)
+        .padding(.horizontal, 16)
+        .padding(.top, 50)
     }
 
     // MARK: - 定位按钮
