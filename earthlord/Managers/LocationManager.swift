@@ -74,6 +74,17 @@ class LocationManager: NSObject, ObservableObject {
     /// 计算出的领地面积（平方米）
     @Published var calculatedArea: Double = 0
 
+    // MARK: - 发布属性（实时状态）
+
+    /// 距离起点的实时距离（米）
+    @Published var distanceToStart: Double = 0
+
+    /// 是否存在自相交（实时检测）
+    @Published var hasSelfIntersection: Bool = false
+
+    /// 当前速度（km/h）
+    @Published var currentSpeed: Double = 0
+
     // MARK: - 私有属性
 
     /// CoreLocation 定位管理器
@@ -267,6 +278,11 @@ class LocationManager: NSObject, ObservableObject {
         territoryValidationError = nil
         calculatedArea = 0
 
+        // 重置实时状态
+        distanceToStart = 0
+        hasSelfIntersection = false
+        currentSpeed = 0
+
         // 重置统计数据
         trackingDuration = 0
         totalDistance = 0
@@ -305,7 +321,8 @@ class LocationManager: NSObject, ObservableObject {
     }
 
     /// 停止路径追踪
-    func stopPathTracking() {
+    /// - Parameter keepValidationState: 是否保留验证状态（上传前需要保留）
+    func stopPathTracking(keepValidationState: Bool = false) {
         guard isTracking else {
             print("📍 [路径追踪] 未在追踪中")
             return
@@ -325,6 +342,45 @@ class LocationManager: NSObject, ObservableObject {
 
         // 检查路径是否闭合（起点和终点距离小于20米）
         checkPathClosure()
+
+        // 如果不保留验证状态，则重置所有状态
+        if !keepValidationState {
+            resetAllState()
+        }
+    }
+
+    /// 重置所有状态（上传成功后调用）
+    func resetAllState() {
+        print("📍 [路径追踪] 重置所有状态")
+        TerritoryLogger.shared.log("重置圈地状态", type: .info)
+
+        // 清除路径
+        pathCoordinates.removeAll()
+        pathUpdateVersion += 1
+
+        // 重置追踪状态
+        isTracking = false
+        isPathClosed = false
+        hasLoggedClosure = false
+
+        // 重置统计数据
+        trackingDuration = 0
+        totalDistance = 0
+
+        // 重置验证状态
+        territoryValidationPassed = false
+        territoryValidationError = nil
+        calculatedArea = 0
+
+        // 重置实时状态
+        distanceToStart = 0
+        hasSelfIntersection = false
+        currentSpeed = 0
+
+        // 重置速度检测状态
+        speedWarning = nil
+        isOverSpeed = false
+        consecutiveOverSpeedCount = 0
     }
 
     /// 清除路径
@@ -335,6 +391,8 @@ class LocationManager: NSObject, ObservableObject {
         isPathClosed = false
         trackingDuration = 0
         totalDistance = 0
+        distanceToStart = 0
+        hasSelfIntersection = false
     }
 
     /// 格式化时长为 mm:ss 格式
@@ -415,6 +473,54 @@ class LocationManager: NSObject, ObservableObject {
         pathUpdateVersion += 1
         print("📍 [路径追踪] 记录点 #\(pathCoordinates.count): \(coordinate.latitude), \(coordinate.longitude)")
         TerritoryLogger.shared.log("记录点 #\(pathCoordinates.count): (\(String(format: "%.6f", coordinate.latitude)), \(String(format: "%.6f", coordinate.longitude)))", type: .info)
+
+        // ⭐ 更新实时状态
+        updateRealtimeStatus()
+    }
+
+    /// 更新实时状态（距离起点、自交检测）
+    private func updateRealtimeStatus() {
+        // 1. 计算距离起点的距离
+        if let first = pathCoordinates.first, let last = pathCoordinates.last, pathCoordinates.count >= 2 {
+            let firstLocation = CLLocation(latitude: first.latitude, longitude: first.longitude)
+            let lastLocation = CLLocation(latitude: last.latitude, longitude: last.longitude)
+            distanceToStart = lastLocation.distance(from: firstLocation)
+        } else {
+            distanceToStart = 0
+        }
+
+        // 2. 实时自交检测（只在点数足够时检测，避免性能问题）
+        if pathCoordinates.count >= 4 {
+            hasSelfIntersection = checkRealtimeSelfIntersection()
+        } else {
+            hasSelfIntersection = false
+        }
+    }
+
+    /// 实时自交检测（轻量版，只检测最新线段）
+    private func checkRealtimeSelfIntersection() -> Bool {
+        guard pathCoordinates.count >= 4 else { return false }
+
+        let pathSnapshot = Array(pathCoordinates)
+        let lastIndex = pathSnapshot.count - 1
+
+        // 只检测最新添加的线段是否与之前的线段相交
+        let p3 = pathSnapshot[lastIndex - 1]
+        let p4 = pathSnapshot[lastIndex]
+
+        // 跳过相邻线段和首尾几条线段
+        let skipTailCount = 3  // 跳过最后3条线段（避免与自己相邻的比较）
+
+        for i in 0..<(lastIndex - skipTailCount) {
+            let p1 = pathSnapshot[i]
+            let p2 = pathSnapshot[i + 1]
+
+            if segmentsIntersect(p1: p1, p2: p2, p3: p3, p4: p4) {
+                TerritoryLogger.shared.log("实时自交: 线段\(i)-\(i+1) 与最新线段相交", type: .warning)
+                return true
+            }
+        }
+        return false
     }
 
     /// 检查路径是否闭合
@@ -664,6 +770,11 @@ class LocationManager: NSObject, ObservableObject {
         // 计算速度（km/h）
         let speedMps = distance / timeInterval  // 米/秒
         let speedKmh = speedMps * 3.6           // 转换为 km/h
+
+        // 更新实时速度（排除 GPS 漂移）
+        if speedKmh <= gpsDriftThreshold {
+            currentSpeed = speedKmh
+        }
 
         print("🚗 [速度检测] 速度: \(String(format: "%.1f", speedKmh)) km/h，连续超速: \(consecutiveOverSpeedCount)")
 

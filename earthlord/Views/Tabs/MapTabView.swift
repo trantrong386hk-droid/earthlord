@@ -20,6 +20,9 @@ struct MapTabView: View {
     /// 定位管理器
     @StateObject private var locationManager = LocationManager.shared
 
+    /// 领地管理器
+    @StateObject private var territoryManager = TerritoryManager.shared
+
     /// 用户位置
     @State private var userLocation: CLLocationCoordinate2D?
 
@@ -34,6 +37,15 @@ struct MapTabView: View {
 
     /// 是否显示验证结果横幅
     @State private var showValidationBanner: Bool = false
+
+    /// 是否正在上传
+    @State private var isUploading: Bool = false
+
+    /// 上传结果消息
+    @State private var uploadMessage: String?
+
+    /// 是否显示上传结果
+    @State private var showUploadResult: Bool = false
 
     // MARK: - Body
 
@@ -131,13 +143,49 @@ struct MapTabView: View {
             }
 
             // 验证结果横幅（在最上层）
-            if showValidationBanner {
+            if showValidationBanner || locationManager.territoryValidationPassed {
                 VStack {
                     validationResultBanner
                         .transition(.move(edge: .top).combined(with: .opacity))
+
+                    // 验证通过时显示「确认登记」按钮
+                    if locationManager.territoryValidationPassed && !isUploading {
+                        confirmRegistrationButton
+                            .transition(.scale.combined(with: .opacity))
+                            .padding(.top, 8)
+                    }
+
+                    // 上传中显示进度
+                    if isUploading {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            Text("正在登记领地...".localized)
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(ApocalypseTheme.primary)
+                        .cornerRadius(12)
+                        .padding(.top, 8)
+                    }
+
                     Spacer()
                 }
                 .animation(.easeInOut(duration: 0.3), value: showValidationBanner)
+                .animation(.easeInOut(duration: 0.3), value: locationManager.territoryValidationPassed)
+                .animation(.easeInOut(duration: 0.3), value: isUploading)
+            }
+
+            // 上传结果提示
+            if showUploadResult, let message = uploadMessage {
+                VStack {
+                    uploadResultBanner(message: message)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    Spacer()
+                }
+                .animation(.easeInOut(duration: 0.3), value: showUploadResult)
             }
         }
         // 监听闭环状态，闭环后根据验证结果显示横幅
@@ -148,10 +196,13 @@ struct MapTabView: View {
                     withAnimation {
                         showValidationBanner = true
                     }
-                    // 3 秒后自动隐藏
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        withAnimation {
-                            showValidationBanner = false
+                    // 验证通过时不自动隐藏横幅，让用户可以点击登记
+                    if !locationManager.territoryValidationPassed {
+                        // 验证失败时 3 秒后自动隐藏
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                            withAnimation {
+                                showValidationBanner = false
+                            }
                         }
                     }
                 }
@@ -178,6 +229,31 @@ struct MapTabView: View {
 
                 Spacer()
 
+                // 实时状态指示器
+                HStack(spacing: 8) {
+                    // 闭环状态
+                    HStack(spacing: 4) {
+                        Image(systemName: locationManager.isPathClosed ? "checkmark.circle.fill" : "circle.dashed")
+                            .font(.caption)
+                            .foregroundColor(locationManager.isPathClosed ? ApocalypseTheme.success : ApocalypseTheme.textMuted)
+                        Text("闭环".localized)
+                            .font(.caption2)
+                            .foregroundColor(ApocalypseTheme.textSecondary)
+                    }
+
+                    // 自交状态
+                    if locationManager.hasSelfIntersection {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(ApocalypseTheme.danger)
+                            Text("自交".localized)
+                                .font(.caption2)
+                                .foregroundColor(ApocalypseTheme.danger)
+                        }
+                    }
+                }
+
                 // 关闭按钮
                 Button {
                     locationManager.stopPathTracking()
@@ -191,7 +267,7 @@ struct MapTabView: View {
                 }
             }
 
-            // 统计数据
+            // 统计数据（第一行）
             HStack(spacing: 0) {
                 // 时长
                 VStack(alignment: .leading, spacing: 4) {
@@ -199,38 +275,124 @@ struct MapTabView: View {
                         .font(.caption)
                         .foregroundColor(ApocalypseTheme.textSecondary)
                     Text(locationManager.formattedDuration)
-                        .font(.title2.bold().monospacedDigit())
+                        .font(.title3.bold().monospacedDigit())
                         .foregroundColor(ApocalypseTheme.textPrimary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                // 距离
+                // 行走距离
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("距离".localized)
+                    Text("行走".localized)
                         .font(.caption)
                         .foregroundColor(ApocalypseTheme.textSecondary)
                     Text(locationManager.formattedDistance)
-                        .font(.title2.bold())
+                        .font(.title3.bold())
                         .foregroundColor(ApocalypseTheme.textPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // 实时速度
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("速度".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                    Text(formattedSpeed)
+                        .font(.title3.bold().monospacedDigit())
+                        .foregroundColor(speedColor)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 // 坐标点
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("坐标点".localized)
+                    Text("点数".localized)
                         .font(.caption)
                         .foregroundColor(ApocalypseTheme.textSecondary)
                     Text("\(locationManager.pathPointCount)")
-                        .font(.title2.bold().monospacedDigit())
+                        .font(.title3.bold().monospacedDigit())
                         .foregroundColor(ApocalypseTheme.textPrimary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            // 距离起点（第二行）
+            HStack {
+                Image(systemName: "flag.fill")
+                    .font(.caption)
+                    .foregroundColor(distanceToStartColor)
+
+                Text("距起点".localized)
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+
+                Text(formattedDistanceToStart)
+                    .font(.subheadline.bold().monospacedDigit())
+                    .foregroundColor(distanceToStartColor)
+
+                Spacer()
+
+                // 闭环提示
+                if locationManager.pathPointCount >= 10 {
+                    if locationManager.isPathClosed {
+                        Text("已闭环".localized)
+                            .font(.caption.bold())
+                            .foregroundColor(ApocalypseTheme.success)
+                    } else if locationManager.distanceToStart <= 50 {
+                        Text("即将闭环".localized)
+                            .font(.caption.bold())
+                            .foregroundColor(ApocalypseTheme.warning)
+                    }
+                } else {
+                    Text("还需 \(10 - locationManager.pathPointCount) 个点".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                }
+            }
+            .padding(.top, 4)
         }
         .padding(16)
         .background(ApocalypseTheme.cardBackground.opacity(0.95))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.2), radius: 8)
+    }
+
+    /// 距离起点的格式化字符串
+    private var formattedDistanceToStart: String {
+        let distance = locationManager.distanceToStart
+        if distance >= 1000 {
+            return String(format: "%.2f km", distance / 1000)
+        } else {
+            return String(format: "%.0f m", distance)
+        }
+    }
+
+    /// 距离起点的颜色（根据闭环状态变化）
+    private var distanceToStartColor: Color {
+        if locationManager.isPathClosed {
+            return ApocalypseTheme.success
+        } else if locationManager.distanceToStart <= 30 && locationManager.pathPointCount >= 10 {
+            return ApocalypseTheme.success
+        } else if locationManager.distanceToStart <= 50 {
+            return ApocalypseTheme.warning
+        } else {
+            return ApocalypseTheme.textPrimary
+        }
+    }
+
+    /// 格式化速度
+    private var formattedSpeed: String {
+        return String(format: "%.1f", locationManager.currentSpeed)
+    }
+
+    /// 速度颜色（根据速度变化）
+    private var speedColor: Color {
+        let speed = locationManager.currentSpeed
+        if speed > 25 {
+            return ApocalypseTheme.danger  // 严重超速
+        } else if speed > 15 {
+            return ApocalypseTheme.warning  // 轻微超速
+        } else {
+            return ApocalypseTheme.success  // 正常速度
+        }
     }
 
     // MARK: - 速度警告卡片
@@ -361,15 +523,23 @@ struct MapTabView: View {
             .cornerRadius(25)
             .shadow(color: Color.black.opacity(0.3), radius: 5)
         }
-        .alert("圈地完成".localized, isPresented: $showClaimAlert) {
+        .alert(locationManager.territoryValidationPassed ? "圈地成功".localized : "圈地失败".localized,
+               isPresented: $showClaimAlert) {
             Button("确认".localized, role: .cancel) {
                 // 清除路径，准备下一次圈地
                 locationManager.clearPath()
             }
         } message: {
-            if locationManager.isPathClosed {
-                Text(verbatim: String(format: "恭喜！您已成功圈定一块领地，共记录 %lld 个点。".localized, locationManager.pathPointCount))
+            if locationManager.territoryValidationPassed {
+                // 验证通过：显示成功信息和面积
+                Text(verbatim: String(format: "恭喜！您已成功圈定一块领地，面积 %.0f m²，共记录 %lld 个点。".localized,
+                                      locationManager.calculatedArea,
+                                      locationManager.pathPointCount))
+            } else if locationManager.isPathClosed {
+                // 闭环但验证失败：显示具体错误原因
+                Text(verbatim: locationManager.territoryValidationError ?? "验证失败".localized)
             } else {
+                // 未闭环
                 Text(verbatim: String(format: "路径未闭合，请确保起点和终点距离在 30 米以内，且至少记录 10 个点。共记录 %lld 个点。".localized, locationManager.pathPointCount))
             }
         }
@@ -455,6 +625,127 @@ struct MapTabView: View {
         .padding(32)
         .background(ApocalypseTheme.cardBackground.opacity(0.95))
         .cornerRadius(16)
+    }
+
+    // MARK: - 确认登记按钮
+
+    private var confirmRegistrationButton: some View {
+        Button {
+            Task {
+                await uploadCurrentTerritory()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.title3)
+                Text("确认登记领地".localized)
+                    .font(.headline)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 14)
+            .background(ApocalypseTheme.success)
+            .cornerRadius(25)
+            .shadow(color: ApocalypseTheme.success.opacity(0.4), radius: 8)
+        }
+    }
+
+    // MARK: - 上传结果横幅
+
+    private func uploadResultBanner(message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: message.contains("成功") ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .font(.body)
+
+            Text(message)
+                .font(.subheadline)
+                .fontWeight(.medium)
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(message.contains("成功") ? ApocalypseTheme.success : ApocalypseTheme.danger)
+        .cornerRadius(12)
+        .padding(.horizontal, 16)
+        .padding(.top, 50)
+    }
+
+    // MARK: - 上传领地方法
+
+    private func uploadCurrentTerritory() async {
+        // 再次检查验证状态
+        guard locationManager.territoryValidationPassed else {
+            showUploadError("领地验证未通过，无法上传".localized)
+            return
+        }
+
+        // 检查是否正在上传
+        guard !isUploading else { return }
+
+        isUploading = true
+        TerritoryLogger.shared.log("开始上传领地...", type: .info)
+
+        do {
+            // 上传领地
+            let territory = try await territoryManager.uploadTerritory(
+                coordinates: locationManager.pathCoordinates,
+                area: locationManager.calculatedArea,
+                startedAt: nil,  // 可以从 locationManager 获取开始时间
+                completedAt: Date()
+            )
+
+            // 上传成功
+            isUploading = false
+            TerritoryLogger.shared.log("领地上传成功！ID: \(territory.id), 面积: \(Int(locationManager.calculatedArea))m²", type: .success)
+
+            // 显示成功提示
+            showUploadSuccess("领地登记成功！面积: \(Int(locationManager.calculatedArea))m²")
+
+            // 重置所有状态
+            locationManager.resetAllState()
+
+            // 隐藏验证横幅
+            withAnimation {
+                showValidationBanner = false
+            }
+
+        } catch {
+            // 上传失败
+            isUploading = false
+            TerritoryLogger.shared.log("领地上传失败: \(error.localizedDescription)", type: .error)
+            showUploadError("上传失败: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - 显示上传结果
+
+    private func showUploadSuccess(_ message: String) {
+        uploadMessage = message
+        withAnimation {
+            showUploadResult = true
+        }
+        // 3 秒后自动隐藏
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            withAnimation {
+                showUploadResult = false
+                uploadMessage = nil
+            }
+        }
+    }
+
+    private func showUploadError(_ message: String) {
+        uploadMessage = message
+        withAnimation {
+            showUploadResult = true
+        }
+        // 5 秒后自动隐藏（错误信息显示更久）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            withAnimation {
+                showUploadResult = false
+                uploadMessage = nil
+            }
+        }
     }
 }
 
