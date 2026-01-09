@@ -45,6 +45,14 @@ struct MapViewRepresentable: UIViewRepresentable {
     /// 路径是否闭合
     var isPathClosed: Bool
 
+    // MARK: - 领地显示属性
+
+    /// 已加载的领地列表
+    var territories: [Territory]
+
+    /// 当前用户 ID（用于区分自己的领地和他人领地）
+    var currentUserId: String?
+
     // MARK: - UIViewRepresentable
 
     /// 创建 MKMapView
@@ -104,6 +112,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         // 更新轨迹显示
         updateTrackingPath(on: mapView, context: context)
+
+        // 更新领地显示
+        drawTerritories(on: mapView, context: context)
     }
 
     // MARK: - 轨迹渲染
@@ -151,6 +162,50 @@ struct MapViewRepresentable: UIViewRepresentable {
         print("🛤️ [轨迹渲染] 绘制轨迹，共 \(gcjCoordinates.count) 个点，闭合: \(isPathClosed)")
     }
 
+    // MARK: - 领地渲染
+
+    /// 绘制已保存的领地
+    private func drawTerritories(on mapView: MKMapView, context: Context) {
+        // 检查领地数量是否变化
+        guard context.coordinator.lastTerritoriesCount != territories.count else {
+            return
+        }
+
+        // 更新记录
+        context.coordinator.lastTerritoriesCount = territories.count
+
+        // 移除旧的领地多边形（保留路径轨迹和当前圈地的多边形）
+        let territoryOverlays = mapView.overlays.filter { overlay in
+            if let polygon = overlay as? MKPolygon {
+                // 只移除有标题的（mine/others），保留 TerritoryPolygon（当前圈地）
+                return polygon.title == "mine" || polygon.title == "others"
+            }
+            return false
+        }
+        mapView.removeOverlays(territoryOverlays)
+
+        // 绘制每个领地
+        for territory in territories {
+            var coords = territory.toCoordinates()
+
+            // 中国大陆需要坐标转换 WGS-84 → GCJ-02
+            coords = CoordinateConverter.convertPath(coords)
+
+            guard coords.count >= 3 else { continue }
+
+            let polygon = MKPolygon(coordinates: coords, count: coords.count)
+
+            // ⚠️ 关键：比较 userId 时必须统一大小写！
+            // 数据库存的是小写 UUID，但 iOS 的 uuidString 返回大写
+            let isMine = territory.ownerId.uuidString.lowercased() == currentUserId?.lowercased()
+            polygon.title = isMine ? "mine" : "others"
+
+            mapView.addOverlay(polygon, level: .aboveRoads)
+        }
+
+        print("🏴 [领地渲染] 绘制 \(territories.count) 个领地")
+    }
+
     /// 创建 Coordinator
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -190,6 +245,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         /// 路径是否闭合（用于轨迹变色）
         var isPathClosed: Bool = false
+
+        /// 领地数量（用于判断是否需要重绘）
+        var lastTerritoriesCount: Int = -1
 
         init(_ parent: MapViewRepresentable) {
             self.parent = parent
@@ -260,7 +318,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         /// ⭐ 关键方法：为 Overlay 提供渲染器
         /// 如果不实现这个方法，Polyline 不会显示！
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            // 领地多边形渲染
+            // 当前圈地的多边形渲染（TerritoryPolygon 类型）
             if let polygon = overlay as? TerritoryPolygon {
                 let renderer = MKPolygonRenderer(polygon: polygon)
 
@@ -270,7 +328,30 @@ struct MapViewRepresentable: UIViewRepresentable {
                 renderer.strokeColor = UIColor.systemGreen
                 renderer.lineWidth = 2.0
 
-                print("🏴 [领地渲染] 创建多边形渲染器")
+                print("🏴 [领地渲染] 创建当前圈地多边形渲染器")
+                return renderer
+            }
+
+            // 已保存领地的多边形渲染（普通 MKPolygon，通过 title 区分）
+            if let polygon = overlay as? MKPolygon {
+                let renderer = MKPolygonRenderer(polygon: polygon)
+
+                if polygon.title == "mine" {
+                    // 我的领地：绿色
+                    renderer.fillColor = UIColor.systemGreen.withAlphaComponent(0.25)
+                    renderer.strokeColor = UIColor.systemGreen
+                } else if polygon.title == "others" {
+                    // 他人领地：橙色
+                    renderer.fillColor = UIColor.systemOrange.withAlphaComponent(0.25)
+                    renderer.strokeColor = UIColor.systemOrange
+                } else {
+                    // 默认：绿色
+                    renderer.fillColor = UIColor.systemGreen.withAlphaComponent(0.25)
+                    renderer.strokeColor = UIColor.systemGreen
+                }
+
+                renderer.lineWidth = 2.0
+                print("🏴 [领地渲染] 创建已保存领地渲染器，类型: \(polygon.title ?? "unknown")")
                 return renderer
             }
 
@@ -305,6 +386,8 @@ struct MapViewRepresentable: UIViewRepresentable {
         trackingPath: [],
         pathUpdateVersion: 0,
         isTracking: false,
-        isPathClosed: false
+        isPathClosed: false,
+        territories: [],
+        currentUserId: nil
     )
 }

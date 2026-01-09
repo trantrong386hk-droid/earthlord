@@ -11,7 +11,17 @@ import CoreLocation
 
 // MARK: - Territory 模型
 
-struct Territory: Codable, Identifiable {
+struct Territory: Codable, Identifiable, Hashable {
+
+    // MARK: - Hashable
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: Territory, rhs: Territory) -> Bool {
+        lhs.id == rhs.id
+    }
 
     // MARK: - 基础字段
 
@@ -94,6 +104,30 @@ struct Territory: Codable, Identifiable {
             latitude: (minLat + maxLat) / 2,
             longitude: (minLon + maxLon) / 2
         )
+    }
+
+    /// 格式化面积显示
+    var formattedArea: String {
+        if areaSqm >= 1_000_000 {
+            return String(format: "%.2f km²", areaSqm / 1_000_000)
+        } else if areaSqm >= 10_000 {
+            return String(format: "%.2f 公顷", areaSqm / 10_000)
+        } else {
+            return String(format: "%.0f m²", areaSqm)
+        }
+    }
+
+    /// 显示名称（如果没有名称则显示默认值）
+    var displayName: String {
+        return name ?? "未命名领地"
+    }
+
+    /// 格式化创建时间
+    var formattedCreatedAt: String {
+        guard let date = createdAt else { return "未知" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.string(from: date)
     }
 }
 

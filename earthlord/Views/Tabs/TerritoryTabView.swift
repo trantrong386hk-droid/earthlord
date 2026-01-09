@@ -1,103 +1,286 @@
+//
+//  TerritoryTabView.swift
+//  earthlord
+//
+//  领地管理页面
+//  显示用户领地列表、统计信息，支持查看详情和删除
+//
+
 import SwiftUI
 
 struct TerritoryTabView: View {
+
+    // MARK: - 属性
+
     @ObservedObject private var languageManager = LanguageManager.shared
+    @StateObject private var territoryManager = TerritoryManager.shared
+
+    /// 选中的领地（用于显示详情页）
+    @State private var selectedTerritory: Territory?
+
+    /// 是否正在加载
+    @State private var isLoading: Bool = false
+
+    /// 错误信息
+    @State private var errorMessage: String?
+
+    // MARK: - 计算属性
+
+    /// 总面积
+    private var totalArea: Double {
+        territoryManager.myTerritories.reduce(0) { $0 + $1.areaSqm }
+    }
+
+    /// 格式化总面积
+    private var formattedTotalArea: String {
+        if totalArea >= 1_000_000 {
+            return String(format: "%.2f km²", totalArea / 1_000_000)
+        } else if totalArea >= 10_000 {
+            return String(format: "%.2f 公顷", totalArea / 10_000)
+        } else {
+            return String(format: "%.0f m²", totalArea)
+        }
+    }
+
+    // MARK: - Body
 
     var body: some View {
-        ZStack {
-            ApocalypseTheme.background
-                .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                ApocalypseTheme.background
+                    .ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 20) {
-                    // 标题
-                    Text("我的领地".localized)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(ApocalypseTheme.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 20)
-
-                    // 统计卡片行
-                    HStack(spacing: 12) {
-                        StatCard(
-                            icon: "flag.fill",
-                            title: "领地数量".localized,
-                            number: "2",
-                            unit: "块".localized,
-                            color: ApocalypseTheme.primary
-                        )
-
-                        StatCard(
-                            icon: "building.2.fill",
-                            title: "建筑".localized,
-                            number: "6",
-                            unit: "座".localized,
-                            color: ApocalypseTheme.success
-                        )
-                    }
-
-                    // 信息卡片
-                    VStack(spacing: 12) {
-                        InfoCard(
-                            icon: "map.fill",
-                            title: "总面积".localized,
-                            value: "30,702 m²"
-                        )
-
-                        InfoCard(
-                            icon: "bolt.fill",
-                            title: "能源产出".localized,
-                            value: "1,200 kW/" + "天".localized,
-                            iconColor: ApocalypseTheme.warning
-                        )
-
-                        InfoCard(
-                            icon: "leaf.fill",
-                            title: "资源储备".localized,
-                            value: "充足".localized,
-                            iconColor: ApocalypseTheme.success
-                        )
-                    }
-
-                    // 操作卡片
-                    Text("快捷操作".localized)
-                        .font(.headline)
-                        .foregroundColor(ApocalypseTheme.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 10)
-
-                    VStack(spacing: 12) {
-                        ActionCard(
-                            icon: "plus.circle.fill",
-                            title: "圈占新领地".localized,
-                            subtitle: "开始新的开拓之旅".localized
-                        ) {
-                            print("圈占新领地")
-                        }
-
-                        ActionCard(
-                            icon: "hammer.fill",
-                            title: "建造建筑".localized,
-                            subtitle: "发展你的领地".localized
-                        ) {
-                            print("建造建筑")
-                        }
-
-                        ActionCard(
-                            icon: "chart.bar.fill",
-                            title: "领地详情".localized,
-                            subtitle: "查看完整统计数据".localized
-                        ) {
-                            print("查看详情")
-                        }
+                if isLoading && territoryManager.myTerritories.isEmpty {
+                    // 首次加载中
+                    loadingView
+                } else if territoryManager.myTerritories.isEmpty {
+                    // 空状态
+                    emptyStateView
+                } else {
+                    // 领地列表
+                    territoryListView
+                }
+            }
+            .navigationTitle(Text("我的领地".localized))
+            .navigationBarTitleDisplayMode(.large)
+            .refreshable {
+                await loadMyTerritories()
+            }
+        }
+        .sheet(item: $selectedTerritory) { territory in
+            TerritoryDetailView(
+                territory: territory,
+                onDelete: {
+                    // 删除后刷新列表
+                    Task {
+                        await loadMyTerritories()
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 30)
+            )
+        }
+        .onAppear {
+            Task {
+                await loadMyTerritories()
             }
         }
         .id(languageManager.refreshID)
+    }
+
+    // MARK: - 领地列表视图
+
+    private var territoryListView: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                // 统计卡片
+                statisticsCard
+
+                // 领地列表标题
+                HStack {
+                    Text("领地列表".localized)
+                        .font(.headline)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    Spacer()
+
+                    Text("\(territoryManager.myTerritories.count) 块")
+                        .font(.subheadline)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                }
+                .padding(.horizontal, 4)
+
+                // 领地卡片列表
+                ForEach(territoryManager.myTerritories) { territory in
+                    TerritoryCard(territory: territory)
+                        .onTapGesture {
+                            selectedTerritory = territory
+                        }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 100)
+        }
+    }
+
+    // MARK: - 统计卡片
+
+    private var statisticsCard: some View {
+        ApocalypseCard {
+            HStack(spacing: 0) {
+                // 领地数量
+                VStack(spacing: 8) {
+                    Image(systemName: "flag.fill")
+                        .font(.title2)
+                        .foregroundColor(ApocalypseTheme.primary)
+
+                    Text("\(territoryManager.myTerritories.count)")
+                        .font(.title.bold())
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    Text("领地数量".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+
+                // 分隔线
+                Rectangle()
+                    .fill(ApocalypseTheme.textMuted.opacity(0.3))
+                    .frame(width: 1, height: 60)
+
+                // 总面积
+                VStack(spacing: 8) {
+                    Image(systemName: "map.fill")
+                        .font(.title2)
+                        .foregroundColor(ApocalypseTheme.success)
+
+                    Text(formattedTotalArea)
+                        .font(.title3.bold())
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    Text("总面积".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    // MARK: - 加载中视图
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: ApocalypseTheme.primary))
+                .scaleEffect(1.2)
+
+            Text("加载中...".localized)
+                .font(.subheadline)
+                .foregroundColor(ApocalypseTheme.textSecondary)
+        }
+    }
+
+    // MARK: - 空状态视图
+
+    private var emptyStateView: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "map")
+                .font(.system(size: 60))
+                .foregroundColor(ApocalypseTheme.textMuted)
+
+            Text("暂无领地".localized)
+                .font(.title2.bold())
+                .foregroundColor(ApocalypseTheme.textPrimary)
+
+            Text("去地图页面圈占你的第一块领地吧！".localized)
+                .font(.subheadline)
+                .foregroundColor(ApocalypseTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            if let error = errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.danger)
+                    .padding(.top, 8)
+            }
+        }
+    }
+
+    // MARK: - 方法
+
+    /// 加载我的领地
+    private func loadMyTerritories() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            try await territoryManager.loadMyTerritories()
+        } catch {
+            errorMessage = error.localizedDescription
+            TerritoryLogger.shared.log("加载我的领地失败: \(error.localizedDescription)", type: .error)
+        }
+
+        isLoading = false
+    }
+}
+
+// MARK: - 领地卡片组件
+
+struct TerritoryCard: View {
+
+    let territory: Territory
+
+    var body: some View {
+        ApocalypseCard {
+            HStack(spacing: 16) {
+                // 领地图标
+                ZStack {
+                    Circle()
+                        .fill(ApocalypseTheme.success.opacity(0.15))
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: "flag.fill")
+                        .font(.title2)
+                        .foregroundColor(ApocalypseTheme.success)
+                }
+
+                // 领地信息
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(territory.displayName)
+                        .font(.headline)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                        .lineLimit(1)
+
+                    HStack(spacing: 12) {
+                        // 面积
+                        Label(territory.formattedArea, systemImage: "square.dashed")
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.textSecondary)
+
+                        // 点数
+                        if let pointCount = territory.pointCount {
+                            Label("\(pointCount) 点", systemImage: "mappin.circle")
+                                .font(.caption)
+                                .foregroundColor(ApocalypseTheme.textSecondary)
+                        }
+                    }
+
+                    // 创建时间
+                    Text(territory.formattedCreatedAt)
+                        .font(.caption2)
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                }
+
+                Spacer()
+
+                // 箭头
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textMuted)
+            }
+        }
     }
 }
 
