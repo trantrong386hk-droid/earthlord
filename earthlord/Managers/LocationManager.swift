@@ -498,6 +498,7 @@ class LocationManager: NSObject, ObservableObject {
     }
 
     /// 实时自交检测（轻量版，只检测最新线段）
+    /// 优化：增加跳过数量和距离容差，避免窄路 GPS 漂移导致的误判
     private func checkRealtimeSelfIntersection() -> Bool {
         guard pathCoordinates.count >= 4 else { return false }
 
@@ -508,19 +509,42 @@ class LocationManager: NSObject, ObservableObject {
         let p3 = pathSnapshot[lastIndex - 1]
         let p4 = pathSnapshot[lastIndex]
 
-        // 跳过相邻线段和首尾几条线段
-        let skipTailCount = 3  // 跳过最后3条线段（避免与自己相邻的比较）
+        // ⭐ 优化：增加跳过数量（从3增加到5），给 GPS 漂移更多容差
+        let skipTailCount = 5  // 跳过最后5条线段（避免相邻线段和 GPS 漂移误判）
 
         for i in 0..<(lastIndex - skipTailCount) {
             let p1 = pathSnapshot[i]
             let p2 = pathSnapshot[i + 1]
 
             if segmentsIntersect(p1: p1, p2: p2, p3: p3, p4: p4) {
-                TerritoryLogger.shared.log("实时自交: 线段\(i)-\(i+1) 与最新线段相交", type: .warning)
+                // ⭐ 优化：检查线段间最小距离，如果太近可能是 GPS 漂移
+                let minDistance = minimumDistanceBetweenSegments(p1: p1, p2: p2, p3: p3, p4: p4)
+                if minDistance < 10.0 {
+                    // 距离小于 10 米，可能是 GPS 漂移导致的假相交，忽略
+                    continue
+                }
+                TerritoryLogger.shared.log("实时自交: 线段\(i)-\(i+1) 与最新线段相交，距离 \(String(format: "%.1f", minDistance))m", type: .warning)
                 return true
             }
         }
         return false
+    }
+
+    /// 计算两条线段之间的最小距离
+    private func minimumDistanceBetweenSegments(p1: CLLocationCoordinate2D, p2: CLLocationCoordinate2D,
+                                                 p3: CLLocationCoordinate2D, p4: CLLocationCoordinate2D) -> Double {
+        let loc1 = CLLocation(latitude: p1.latitude, longitude: p1.longitude)
+        let loc2 = CLLocation(latitude: p2.latitude, longitude: p2.longitude)
+        let loc3 = CLLocation(latitude: p3.latitude, longitude: p3.longitude)
+        let loc4 = CLLocation(latitude: p4.latitude, longitude: p4.longitude)
+
+        // 计算四个端点之间的最小距离
+        let d1 = loc1.distance(from: loc3)
+        let d2 = loc1.distance(from: loc4)
+        let d3 = loc2.distance(from: loc3)
+        let d4 = loc2.distance(from: loc4)
+
+        return min(d1, d2, d3, d4)
     }
 
     /// 检查路径是否闭合
@@ -642,6 +666,7 @@ class LocationManager: NSObject, ObservableObject {
 
     /// 检测路径是否自相交
     /// - Returns: true 表示存在自相交
+    /// ⭐ 优化：增加跳过数量和距离容差，避免窄路 GPS 漂移导致的误判
     func hasPathSelfIntersection() -> Bool {
         // ✅ 防御性检查：至少需要4个点才可能自交
         guard pathCoordinates.count >= 4 else { return false }
@@ -657,9 +682,12 @@ class LocationManager: NSObject, ObservableObject {
         // ✅ 防御性检查：确保有足够的线段
         guard segmentCount >= 2 else { return false }
 
-        // ✅ 闭环时需要跳过的首尾线段数量（防止正常圈地被误判）
-        let skipHeadCount = 2
-        let skipTailCount = 2
+        // ⭐ 优化：增加跳过数量（从2增加到4），给 GPS 漂移更多容差
+        let skipHeadCount = 4
+        let skipTailCount = 4
+
+        // ⭐ 优化：最小线段间隔（至少间隔5个点才检测相交）
+        let minSegmentGap = 5
 
         for i in 0..<segmentCount {
             // ✅ 循环内索引检查
@@ -668,7 +696,8 @@ class LocationManager: NSObject, ObservableObject {
             let p1 = pathSnapshot[i]
             let p2 = pathSnapshot[i + 1]
 
-            let startJ = i + 2
+            // ⭐ 优化：从 i + minSegmentGap 开始，跳过相邻的线段
+            let startJ = i + minSegmentGap
             guard startJ < segmentCount else { continue }
 
             for j in startJ..<segmentCount {
@@ -686,7 +715,14 @@ class LocationManager: NSObject, ObservableObject {
                 let p4 = pathSnapshot[j + 1]
 
                 if segmentsIntersect(p1: p1, p2: p2, p3: p3, p4: p4) {
-                    TerritoryLogger.shared.log("自交检测: 线段\(i)-\(i+1) 与 线段\(j)-\(j+1) 相交", type: .error)
+                    // ⭐ 优化：检查线段间最小距离，如果太近可能是 GPS 漂移
+                    let minDistance = minimumDistanceBetweenSegments(p1: p1, p2: p2, p3: p3, p4: p4)
+                    if minDistance < 10.0 {
+                        // 距离小于 10 米，可能是 GPS 漂移导致的假相交，忽略
+                        TerritoryLogger.shared.log("自交检测: 线段\(i)-\(i+1) 与 线段\(j)-\(j+1) 距离仅 \(String(format: "%.1f", minDistance))m，忽略（GPS漂移）", type: .info)
+                        continue
+                    }
+                    TerritoryLogger.shared.log("自交检测: 线段\(i)-\(i+1) 与 线段\(j)-\(j+1) 相交，距离 \(String(format: "%.1f", minDistance))m", type: .error)
                     return true
                 }
             }

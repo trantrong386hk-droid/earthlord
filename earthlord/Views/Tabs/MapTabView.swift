@@ -121,6 +121,12 @@ struct MapTabView: View {
 
             // 顶部信息卡片
             VStack(spacing: 12) {
+                // Day 19: 碰撞警告横幅（放在最上面）
+                if showCollisionWarning, let warning = collisionWarning {
+                    collisionWarningBannerCompact(message: warning, level: collisionWarningLevel)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 // 圈地信息卡片（追踪时显示）
                 if locationManager.isTracking {
                     trackingInfoCard
@@ -139,6 +145,7 @@ struct MapTabView: View {
             .padding(.top, 60)  // 避开状态栏
             .animation(.easeInOut(duration: 0.3), value: locationManager.isTracking)
             .animation(.easeInOut(duration: 0.3), value: locationManager.speedWarning != nil)
+            .animation(.easeInOut(duration: 0.3), value: showCollisionWarning)
 
             // 右下角控制按钮
             VStack {
@@ -216,10 +223,6 @@ struct MapTabView: View {
                 .animation(.easeInOut(duration: 0.3), value: showUploadResult)
             }
 
-            // Day 19: 碰撞警告横幅（分级颜色）
-            if showCollisionWarning, let warning = collisionWarning {
-                collisionWarningBanner(message: warning, level: collisionWarningLevel)
-            }
         }
         // 监听闭环状态，闭环后根据验证结果显示横幅
         .onReceive(locationManager.$isPathClosed) { isClosed in
@@ -562,6 +565,8 @@ struct MapTabView: View {
             Button("确认".localized, role: .cancel) {
                 // 清除路径，准备下一次圈地
                 locationManager.clearPath()
+                // 隐藏验证横幅
+                showValidationBanner = false
             }
         } message: {
             if locationManager.territoryValidationPassed {
@@ -831,7 +836,7 @@ struct MapTabView: View {
             showCollisionWarning = true
 
             // 错误震动
-            triggerHapticFeedback(level: .violation)
+            HapticManager.shared.playFeedback(for: .violation)
 
             TerritoryLogger.shared.log("起点碰撞：阻止圈地", type: .error)
 
@@ -847,6 +852,7 @@ struct MapTabView: View {
 
         // 起点安全，开始圈地
         TerritoryLogger.shared.log("起始点安全，开始圈地", type: .info)
+        HapticManager.shared.prepare()  // 预热震动生成器
         locationManager.startPathTracking()
         startCollisionMonitoring()
     }
@@ -857,8 +863,11 @@ struct MapTabView: View {
         stopCollisionCheckTimer()
 
         // 每 10 秒检测一次
+        // ⭐ 修复：确保在主线程执行 UI 更新，避免崩溃
         collisionCheckTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
-            performCollisionCheck()
+            DispatchQueue.main.async { [self] in
+                performCollisionCheck()
+            }
         }
 
         TerritoryLogger.shared.log("碰撞检测定时器已启动", type: .info)
@@ -908,21 +917,21 @@ struct MapTabView: View {
             collisionWarning = result.message
             collisionWarningLevel = .caution
             showCollisionWarning = true
-            triggerHapticFeedback(level: .caution)
+            HapticManager.shared.playFeedback(for: .caution)
 
         case .warning:
             // 警告（25-50m）- 橙色横幅 + 中震 2 次
             collisionWarning = result.message
             collisionWarningLevel = .warning
             showCollisionWarning = true
-            triggerHapticFeedback(level: .warning)
+            HapticManager.shared.playFeedback(for: .warning)
 
         case .danger:
             // 危险（<25m）- 红色横幅 + 强震 3 次
             collisionWarning = result.message
             collisionWarningLevel = .danger
             showCollisionWarning = true
-            triggerHapticFeedback(level: .danger)
+            HapticManager.shared.playFeedback(for: .danger)
 
         case .violation:
             // 【关键修复】违规处理 - 必须先显示横幅，再停止！
@@ -933,7 +942,7 @@ struct MapTabView: View {
             showCollisionWarning = true
 
             // 2. 触发震动
-            triggerHapticFeedback(level: .violation)
+            HapticManager.shared.playFeedback(for: .violation)
 
             // 3. 只停止定时器，不清除警告状态！
             stopCollisionCheckTimer()
@@ -952,50 +961,8 @@ struct MapTabView: View {
         }
     }
 
-    /// Day 19: 触发震动反馈
-    private func triggerHapticFeedback(level: WarningLevel) {
-        switch level {
-        case .safe:
-            // 安全：无震动
-            break
-
-        case .caution:
-            // 注意：轻震 1 次
-            let generator = UINotificationFeedbackGenerator()
-            generator.prepare()
-            generator.notificationOccurred(.warning)
-
-        case .warning:
-            // 警告：中震 2 次
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            generator.prepare()
-            generator.impactOccurred()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                generator.impactOccurred()
-            }
-
-        case .danger:
-            // 危险：强震 3 次
-            let generator = UIImpactFeedbackGenerator(style: .heavy)
-            generator.prepare()
-            generator.impactOccurred()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                generator.impactOccurred()
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                generator.impactOccurred()
-            }
-
-        case .violation:
-            // 违规：错误震动
-            let generator = UINotificationFeedbackGenerator()
-            generator.prepare()
-            generator.notificationOccurred(.error)
-        }
-    }
-
-    /// Day 19: 碰撞警告横幅（分级颜色）
-    private func collisionWarningBanner(message: String, level: WarningLevel) -> some View {
+    /// Day 19: 碰撞警告横幅（紧凑版，用于 VStack 内）
+    private func collisionWarningBannerCompact(message: String, level: WarningLevel) -> some View {
         // 根据级别确定颜色
         let backgroundColor: Color
         switch level {
@@ -1015,26 +982,19 @@ struct MapTabView: View {
         // 根据级别确定图标
         let iconName = (level == .violation) ? "xmark.octagon.fill" : "exclamationmark.triangle.fill"
 
-        return VStack {
-            HStack {
-                Image(systemName: iconName)
-                    .font(.system(size: 18))
+        return HStack {
+            Image(systemName: iconName)
+                .font(.system(size: 16))
 
-                Text(message)
-                    .font(.system(size: 14, weight: .medium))
-            }
-            .foregroundColor(textColor)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(backgroundColor.opacity(0.95))
-            .cornerRadius(25)
-            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-            .padding(.top, 120)
-
-            Spacer()
+            Text(message)
+                .font(.system(size: 13, weight: .medium))
         }
-        .transition(.move(edge: .top).combined(with: .opacity))
-        .animation(.easeInOut(duration: 0.3), value: showCollisionWarning)
+        .foregroundColor(textColor)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(backgroundColor.opacity(0.95))
+        .cornerRadius(20)
+        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
     }
 }
 

@@ -362,7 +362,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 // 轨迹样式：根据闭合状态变色
                 // 未闭环：青色，已闭环：绿色
                 renderer.strokeColor = isPathClosed ? UIColor.systemGreen : UIColor.systemCyan
-                renderer.lineWidth = 5.0
+                renderer.lineWidth = 4.0
                 renderer.lineCap = .round
                 renderer.lineJoin = .round
 
