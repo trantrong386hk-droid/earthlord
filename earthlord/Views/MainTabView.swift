@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @State private var selectedTab = 2  // 默认进入「个人」页面
+    @State private var selectedTab = 3  // 默认进入「个人」页面
     @ObservedObject private var languageManager = LanguageManager.shared
 
     var body: some View {
@@ -20,19 +20,26 @@ struct MainTabView: View {
                 }
                 .tag(1)
 
+            ResourcesTabView()
+                .tabItem {
+                    Image(systemName: "cube.box.fill")
+                    Text("资源".localized)
+                }
+                .tag(2)
+
             ProfileTabView()
                 .tabItem {
                     Image(systemName: "person.fill")
                     Text("个人".localized)
                 }
-                .tag(2)
+                .tag(3)
 
             MoreTabView()
                 .tabItem {
                     Image(systemName: "ellipsis")
                     Text("更多".localized)
                 }
-                .tag(3)
+                .tag(4)
         }
         .tint(ApocalypseTheme.primary)
         .id(languageManager.refreshID)

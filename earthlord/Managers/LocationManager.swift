@@ -306,18 +306,13 @@ class LocationManager: NSObject, ObservableObject {
         }
 
         // 启动路径采点定时器，每2秒检查一次
-        pathUpdateTimer = Timer.scheduledTimer(withTimeInterval: trackingInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.recordPathPoint()
-            }
-        }
+        // 使用 target-action 模式，确保在主线程执行
+        pathUpdateTimer = Timer(timeInterval: trackingInterval, target: self, selector: #selector(timerRecordPathPoint), userInfo: nil, repeats: true)
+        RunLoop.main.add(pathUpdateTimer!, forMode: .common)
 
         // 启动时长更新定时器，每秒更新
-        durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateTrackingDuration()
-            }
-        }
+        durationTimer = Timer(timeInterval: 1.0, target: self, selector: #selector(timerUpdateDuration), userInfo: nil, repeats: true)
+        RunLoop.main.add(durationTimer!, forMode: .common)
     }
 
     /// 停止路径追踪
@@ -413,6 +408,18 @@ class LocationManager: NSObject, ObservableObject {
 
     // MARK: - 私有方法（路径追踪）
 
+    // MARK: - Timer 回调方法（@objc 包装器）
+
+    /// Timer 回调：更新时长
+    @objc private func timerUpdateDuration() {
+        updateTrackingDuration()
+    }
+
+    /// Timer 回调：记录路径点
+    @objc private func timerRecordPathPoint() {
+        recordPathPoint()
+    }
+
     /// 更新追踪时长
     private func updateTrackingDuration() {
         guard let startTime = trackingStartTime else { return }
@@ -421,14 +428,20 @@ class LocationManager: NSObject, ObservableObject {
 
     /// 定时器回调：判断是否记录新点
     private func recordPathPoint() {
-        guard isTracking else { return }
+        guard isTracking else {
+            print("📍 [路径追踪] ⚠️ recordPathPoint 被调用但 isTracking=false")
+            return
+        }
         guard let location = currentLocation else {
-            print("📍 [路径追踪] 当前位置不可用")
+            print("📍 [路径追踪] ⚠️ 当前位置不可用 (currentLocation=nil)")
             return
         }
 
+        print("📍 [路径追踪] 📌 recordPathPoint 触发，位置: \(location.coordinate.latitude), \(location.coordinate.longitude)")
+
         // 速度检测（超速时不记录该点）
         if !validateMovementSpeed(newLocation: location) {
+            print("📍 [路径追踪] ⚠️ 速度检测未通过，跳过该点")
             return
         }
 
@@ -436,10 +449,13 @@ class LocationManager: NSObject, ObservableObject {
 
         // 检查是否需要记录新点
         if shouldRecordPoint(coordinate) {
+            print("📍 [路径追踪] ✅ 满足记录条件，添加新点")
             addPathPoint(coordinate)
 
             // 记录新坐标后检查闭环
             checkPathClosure()
+        } else {
+            print("📍 [路径追踪] ⏭️ 移动距离不足 \(minDistanceForNewPoint)m，跳过")
         }
     }
 
@@ -498,7 +514,7 @@ class LocationManager: NSObject, ObservableObject {
     }
 
     /// 实时自交检测（轻量版，只检测最新线段）
-    /// 优化：增加跳过数量和距离容差，避免窄路 GPS 漂移导致的误判
+    /// 优化：使用距离容差避免 GPS 漂移误判，而不是跳过太多线段
     private func checkRealtimeSelfIntersection() -> Bool {
         guard pathCoordinates.count >= 4 else { return false }
 
@@ -509,10 +525,15 @@ class LocationManager: NSObject, ObservableObject {
         let p3 = pathSnapshot[lastIndex - 1]
         let p4 = pathSnapshot[lastIndex]
 
-        // ⭐ 优化：增加跳过数量（从3增加到5），给 GPS 漂移更多容差
-        let skipTailCount = 5  // 跳过最后5条线段（避免相邻线段和 GPS 漂移误判）
+        // ⭐ 修复：减少跳过数量（从5改为2），只跳过紧邻的线段
+        // GPS 漂移由 minDistance 检测处理，不需要跳过太多线段
+        let skipTailCount = 2  // 只跳过最后2条线段（避免相邻线段误判）
 
-        for i in 0..<(lastIndex - skipTailCount) {
+        // ⭐ 修复：确保不会创建无效的 Range（当点数不足时跳过检测）
+        let endIndex = lastIndex - skipTailCount
+        guard endIndex > 0 else { return false }
+
+        for i in 0..<endIndex {
             let p1 = pathSnapshot[i]
             let p2 = pathSnapshot[i + 1]
 

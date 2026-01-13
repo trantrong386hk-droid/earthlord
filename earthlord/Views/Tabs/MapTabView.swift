@@ -10,6 +10,7 @@ import SwiftUI
 import MapKit
 import CoreLocation
 import UIKit
+import Combine
 
 struct MapTabView: View {
 
@@ -23,6 +24,9 @@ struct MapTabView: View {
 
     /// 领地管理器
     @StateObject private var territoryManager = TerritoryManager.shared
+
+    /// 探索管理器
+    @StateObject private var explorationManager = ExplorationManager.shared
 
     /// 认证管理器
     @ObservedObject private var authManager = AuthManager.shared
@@ -56,9 +60,6 @@ struct MapTabView: View {
 
     // MARK: - Day 19: 碰撞检测状态
 
-    /// 碰撞检测定时器
-    @State private var collisionCheckTimer: Timer?
-
     /// 碰撞警告消息
     @State private var collisionWarning: String?
 
@@ -67,6 +68,11 @@ struct MapTabView: View {
 
     /// 碰撞警告级别
     @State private var collisionWarningLevel: WarningLevel = .safe
+
+    // MARK: - 探索功能状态
+
+    /// 是否显示探索结果
+    @State private var showExplorationResult: Bool = false
 
     // MARK: - Body
 
@@ -127,14 +133,26 @@ struct MapTabView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
+                // 探索速度警告卡片（探索时超速显示）
+                if explorationManager.state == .exploring, explorationManager.isOverSpeed {
+                    explorationSpeedWarningCard
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                // 探索信息卡片（探索时显示）
+                if explorationManager.state == .exploring {
+                    explorationInfoCard
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 // 圈地信息卡片（追踪时显示）
-                if locationManager.isTracking {
+                if locationManager.isTracking && explorationManager.state != .exploring {
                     trackingInfoCard
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                // 速度警告卡片
-                if locationManager.speedWarning != nil {
+                // 圈地速度警告卡片
+                if locationManager.speedWarning != nil && explorationManager.state != .exploring {
                     speedWarningCard
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -146,30 +164,36 @@ struct MapTabView: View {
             .animation(.easeInOut(duration: 0.3), value: locationManager.isTracking)
             .animation(.easeInOut(duration: 0.3), value: locationManager.speedWarning != nil)
             .animation(.easeInOut(duration: 0.3), value: showCollisionWarning)
+            .animation(.easeInOut(duration: 0.3), value: explorationManager.state)
+            .animation(.easeInOut(duration: 0.3), value: explorationManager.isOverSpeed)
 
-            // 右下角控制按钮
+            // 底部控制按钮
             VStack {
                 Spacer()
 
+                // 坐标信息卡片（底部按钮上方，右对齐）
                 HStack {
                     Spacer()
-
-                    // 控制按钮组
-                    VStack(spacing: 12) {
-                        // 定位按钮
-                        locationButton
-
-                        // 圈地按钮
-                        claimTerritoryButton
-
-                        // 坐标信息卡片
-                        if let location = userLocation {
-                            coordinateCard(location: location)
-                        }
+                    if let location = userLocation {
+                        coordinateCard(location: location)
                     }
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 100)  // 避开底部 Tab 栏
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+
+                // 底部按钮行：圈地 | 定位 | 探索
+                HStack(spacing: 12) {
+                    // 左侧：圈地按钮
+                    claimTerritoryButton
+
+                    // 中间：定位按钮
+                    locationButton
+
+                    // 右侧：探索按钮
+                    exploreButton
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 100)  // 避开底部 Tab 栏
             }
 
             // 加载中状态
@@ -242,6 +266,31 @@ struct MapTabView: View {
                         }
                     }
                 }
+            }
+        }
+        // 探索结果弹窗
+        .sheet(isPresented: $showExplorationResult) {
+            if let result = explorationManager.currentResult {
+                ExplorationResultView(
+                    result: result,
+                    stats: explorationManager.stats ?? MockExplorationResultData.stats
+                )
+                .onDisappear {
+                    // 关闭结果页后重置状态
+                    explorationManager.reset()
+                }
+            }
+        }
+        // 监听探索完成状态
+        .onChange(of: explorationManager.state) { _, newState in
+            if newState == .completed {
+                showExplorationResult = true
+            }
+        }
+        // Day 19: 路径更新时执行碰撞检测（比定时器更安全）
+        .onChange(of: locationManager.pathUpdateVersion) { _, _ in
+            if locationManager.isTracking {
+                performCollisionCheck()
             }
         }
     }
@@ -471,6 +520,177 @@ struct MapTabView: View {
         .shadow(color: Color.black.opacity(0.2), radius: 8)
     }
 
+    // MARK: - 探索信息卡片
+
+    /// 探索信息卡片（探索时显示距离、时长、速度）
+    private var explorationInfoCard: some View {
+        VStack(spacing: 12) {
+            // 标题栏
+            HStack {
+                // 绿点 + 标题
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 10, height: 10)
+
+                    Text("正在探索".localized)
+                        .font(.headline)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                }
+
+                Spacer()
+
+                // 预估等级
+                HStack(spacing: 4) {
+                    Image(systemName: explorationTierIcon)
+                        .font(.caption)
+                        .foregroundColor(explorationTierColor)
+                    Text(explorationManager.estimatedTier.rawValue)
+                        .font(.caption.bold())
+                        .foregroundColor(explorationTierColor)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(explorationTierColor.opacity(0.2))
+                .cornerRadius(8)
+            }
+
+            // 统计数据
+            HStack(spacing: 0) {
+                // 时长
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("时长".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                    Text(explorationManager.formattedDuration)
+                        .font(.title3.bold().monospacedDigit())
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // 距离
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("距离".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                    Text(explorationManager.formattedDistance)
+                        .font(.title3.bold())
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // 速度
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("速度".localized)
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                    Text(String(format: "%.1f", explorationManager.currentSpeed))
+                        .font(.title3.bold().monospacedDigit())
+                        .foregroundColor(explorationSpeedColor)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // 奖励等级提示
+            HStack {
+                Image(systemName: "info.circle")
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textMuted)
+                Text(explorationTierHint)
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+                Spacer()
+            }
+        }
+        .padding(16)
+        .background(ApocalypseTheme.cardBackground.opacity(0.95))
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.2), radius: 8)
+    }
+
+    /// 探索等级图标
+    private var explorationTierIcon: String {
+        switch explorationManager.estimatedTier {
+        case .none: return "xmark.circle"
+        case .bronze: return "medal"
+        case .silver: return "medal.fill"
+        case .gold: return "star.fill"
+        case .diamond: return "sparkles"
+        }
+    }
+
+    /// 探索等级颜色
+    private var explorationTierColor: Color {
+        switch explorationManager.estimatedTier {
+        case .none: return ApocalypseTheme.textMuted
+        case .bronze: return Color.brown
+        case .silver: return Color.gray
+        case .gold: return Color.yellow
+        case .diamond: return Color.cyan
+        }
+    }
+
+    /// 探索等级提示
+    private var explorationTierHint: String {
+        switch explorationManager.estimatedTier {
+        case .none: return "再走 \(Int(200 - explorationManager.currentDistance)) 米可获得铜级奖励"
+        case .bronze: return "再走 \(Int(500 - explorationManager.currentDistance)) 米可升级为银级"
+        case .silver: return "再走 \(Int(1000 - explorationManager.currentDistance)) 米可升级为金级"
+        case .gold: return "再走 \(Int(2000 - explorationManager.currentDistance)) 米可升级为钻石级"
+        case .diamond: return "已达到最高等级，继续探索！"
+        }
+    }
+
+    /// 探索速度颜色
+    private var explorationSpeedColor: Color {
+        let speed = explorationManager.currentSpeed
+        if speed > 30 {
+            return ApocalypseTheme.danger
+        } else if speed > 20 {
+            return ApocalypseTheme.warning
+        } else {
+            return ApocalypseTheme.success
+        }
+    }
+
+    // MARK: - 探索速度警告卡片
+
+    /// 探索速度警告卡片
+    private var explorationSpeedWarningCard: some View {
+        HStack(spacing: 12) {
+            // 警告图标（带倒计时）
+            ZStack {
+                Circle()
+                    .stroke(ApocalypseTheme.danger, lineWidth: 3)
+                    .frame(width: 44, height: 44)
+
+                Text("\(explorationManager.speedViolationCountdown)")
+                    .font(.title2.bold().monospacedDigit())
+                    .foregroundColor(ApocalypseTheme.danger)
+            }
+
+            // 文字内容
+            VStack(alignment: .leading, spacing: 2) {
+                Text("速度过快！".localized)
+                    .font(.subheadline.bold())
+                    .foregroundColor(ApocalypseTheme.danger)
+
+                Text(explorationManager.speedWarning ?? "请在倒计时结束前减速至 30 km/h 以下")
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+            }
+
+            Spacer()
+        }
+        .padding(16)
+        .background(ApocalypseTheme.danger.opacity(0.15))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(ApocalypseTheme.danger, lineWidth: 2)
+        )
+        .cornerRadius(16)
+    }
+
     // MARK: - 验证结果横幅
 
     /// 验证结果横幅（根据验证结果显示成功或失败）
@@ -515,6 +735,102 @@ struct MapTabView: View {
                 .background(ApocalypseTheme.cardBackground.opacity(0.95))
                 .cornerRadius(25)
                 .shadow(color: Color.black.opacity(0.3), radius: 5)
+        }
+    }
+
+    // MARK: - 探索按钮
+
+    private var exploreButton: some View {
+        Button {
+            handleExploreButtonTap()
+        } label: {
+            HStack(spacing: 8) {
+                switch explorationManager.state {
+                case .idle:
+                    Image(systemName: "figure.walk")
+                        .font(.title3)
+                    Text("探索".localized)
+                        .font(.subheadline.bold())
+
+                case .exploring:
+                    Image(systemName: "stop.fill")
+                        .font(.title3)
+                    Text("结束".localized)
+                        .font(.subheadline.bold())
+                    // 显示当前距离
+                    Text(explorationManager.formattedDistance)
+                        .font(.caption.bold())
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.3))
+                        .cornerRadius(8)
+
+                case .finishing:
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.9)
+                    Text("生成奖励...".localized)
+                        .font(.subheadline.bold())
+
+                case .completed:
+                    Image(systemName: "gift.fill")
+                        .font(.title3)
+                    Text("查看奖励".localized)
+                        .font(.subheadline.bold())
+
+                case .failed:
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title3)
+                    Text("探索失败".localized)
+                        .font(.subheadline.bold())
+                }
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(exploreButtonBackground)
+            .cornerRadius(25)
+            .shadow(color: Color.black.opacity(0.3), radius: 5)
+        }
+        .disabled(explorationManager.state == .finishing)
+    }
+
+    /// 探索按钮背景色
+    private var exploreButtonBackground: Color {
+        switch explorationManager.state {
+        case .idle:
+            return ApocalypseTheme.primary
+        case .exploring:
+            return ApocalypseTheme.warning
+        case .finishing:
+            return ApocalypseTheme.textMuted
+        case .completed:
+            return ApocalypseTheme.success
+        case .failed:
+            return ApocalypseTheme.danger
+        }
+    }
+
+    /// 处理探索按钮点击
+    private func handleExploreButtonTap() {
+        switch explorationManager.state {
+        case .idle, .failed:
+            // 开始探索（失败后也可以重新开始）
+            explorationManager.startExploration()
+
+        case .exploring:
+            // 结束探索
+            Task {
+                await explorationManager.stopExploration()
+            }
+
+        case .finishing:
+            // 生成中，不处理
+            break
+
+        case .completed:
+            // 显示结果
+            showExplorationResult = true
         }
     }
 
@@ -857,32 +1173,18 @@ struct MapTabView: View {
         startCollisionMonitoring()
     }
 
-    /// Day 19: 启动碰撞检测监控
+    /// Day 19: 启动碰撞检测监控（使用 onChange 代替定时器，更安全）
     private func startCollisionMonitoring() {
-        // 先停止已有定时器
-        stopCollisionCheckTimer()
-
-        // 每 10 秒检测一次
-        // ⭐ 修复：确保在主线程执行 UI 更新，避免崩溃
-        collisionCheckTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
-            DispatchQueue.main.async { [self] in
-                performCollisionCheck()
-            }
-        }
-
-        TerritoryLogger.shared.log("碰撞检测定时器已启动", type: .info)
+        TerritoryLogger.shared.log("碰撞检测已启用", type: .info)
     }
 
     /// Day 19: 仅停止定时器（不清除警告状态）
     private func stopCollisionCheckTimer() {
-        collisionCheckTimer?.invalidate()
-        collisionCheckTimer = nil
-        TerritoryLogger.shared.log("碰撞检测定时器已停止", type: .info)
+        TerritoryLogger.shared.log("碰撞检测已停止", type: .info)
     }
 
     /// Day 19: 完全停止碰撞监控（停止定时器 + 清除警告）
     private func stopCollisionMonitoring() {
-        stopCollisionCheckTimer()
         // 清除警告状态
         showCollisionWarning = false
         collisionWarning = nil
