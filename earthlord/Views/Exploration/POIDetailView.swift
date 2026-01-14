@@ -299,6 +299,8 @@ struct POIDetailView: View {
         case .house: return .cyan
         case .police: return .blue
         case .military: return .yellow
+        case .restaurant: return .yellow
+        case .cafe: return .brown
         }
     }
 
@@ -314,6 +316,8 @@ struct POIDetailView: View {
         case .house: return "house.fill"
         case .police: return "shield.lefthalf.filled"
         case .military: return "star.fill"
+        case .restaurant: return "fork.knife"
+        case .cafe: return "cup.and.saucer.fill"
         }
     }
 

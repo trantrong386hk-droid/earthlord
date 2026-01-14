@@ -121,7 +121,9 @@ struct MapTabView: View {
                 isTracking: locationManager.isTracking,
                 isPathClosed: locationManager.isPathClosed,
                 territories: territories,
-                currentUserId: authManager.userId?.uuidString
+                currentUserId: authManager.userId?.uuidString,
+                pois: explorationManager.nearbyPOIs,
+                scavengedPOIIds: explorationManager.scavengedPOIIds
             )
             .ignoresSafeArea()
 
@@ -201,6 +203,12 @@ struct MapTabView: View {
                 loadingOverlay
             }
 
+            // POI 接近提示弹窗
+            if explorationManager.showPOIPopup, let poi = explorationManager.currentPOI {
+                poiProximityPopup(poi: poi)
+                    .transition(.scale.combined(with: .opacity))
+            }
+
             // 验证结果横幅（在最上层）
             if showValidationBanner || locationManager.territoryValidationPassed {
                 VStack {
@@ -278,6 +286,18 @@ struct MapTabView: View {
                 .onDisappear {
                     // 关闭结果页后重置状态
                     explorationManager.reset()
+                }
+            }
+        }
+        // POI 搜刮结果弹窗
+        .sheet(isPresented: $explorationManager.showScavengeResult) {
+            if let poi = explorationManager.currentPOI {
+                ScavengeResultView(
+                    poi: poi,
+                    loot: explorationManager.scavengeLoot
+                )
+                .onDisappear {
+                    explorationManager.dismissScavengeResult()
                 }
             }
         }
@@ -1260,6 +1280,112 @@ struct MapTabView: View {
                 collisionWarning = nil
                 collisionWarningLevel = .safe
             }
+        }
+    }
+
+    // MARK: - POI 搜刮弹窗
+
+    /// POI 接近提示弹窗
+    private func poiProximityPopup(poi: POI) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 16) {
+                // 图标和标题
+                HStack(spacing: 12) {
+                    // POI 类型图标
+                    Image(systemName: poi.type.iconName)
+                        .font(.title)
+                        .foregroundColor(Color(poi.type.markerColor))
+                        .frame(width: 50, height: 50)
+                        .background(Color(poi.type.markerColor).opacity(0.2))
+                        .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("发现废墟")
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.textSecondary)
+                        Text(poi.name)
+                            .font(.headline)
+                            .foregroundColor(ApocalypseTheme.textPrimary)
+                        Text(poi.type.displayName)
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.textMuted)
+                    }
+
+                    Spacer()
+                }
+
+                // 危险等级提示
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundColor(dangerLevelColor(poi.dangerLevel))
+                    Text("危险等级: \(poi.dangerLevel)")
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                    Spacer()
+                }
+
+                // 按钮行
+                HStack(spacing: 12) {
+                    // 稍后再说按钮
+                    Button {
+                        withAnimation {
+                            explorationManager.dismissPOIPopup()
+                        }
+                    } label: {
+                        Text("稍后再说")
+                            .font(.subheadline)
+                            .foregroundColor(ApocalypseTheme.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(ApocalypseTheme.cardBackground)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(ApocalypseTheme.textMuted, lineWidth: 1)
+                            )
+                            .cornerRadius(12)
+                    }
+
+                    // 立即搜刮按钮
+                    Button {
+                        Task {
+                            await explorationManager.scavengePOI(poi)
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "magnifyingglass")
+                            Text("立即搜刮")
+                        }
+                        .font(.subheadline.bold())
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(ApocalypseTheme.primary)
+                        .cornerRadius(12)
+                    }
+                }
+            }
+            .padding(20)
+            .background(ApocalypseTheme.cardBackground.opacity(0.98))
+            .cornerRadius(20)
+            .shadow(color: Color.black.opacity(0.3), radius: 10)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 120)  // 避开底部 Tab 栏
+        }
+        .background(Color.black.opacity(0.3))
+        .ignoresSafeArea()
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: explorationManager.showPOIPopup)
+    }
+
+    /// 危险等级颜色
+    private func dangerLevelColor(_ level: Int) -> Color {
+        switch level {
+        case 1...2: return ApocalypseTheme.success
+        case 3: return ApocalypseTheme.warning
+        case 4...5: return ApocalypseTheme.danger
+        default: return ApocalypseTheme.textMuted
         }
     }
 

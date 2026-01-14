@@ -85,6 +85,11 @@ class LocationManager: NSObject, ObservableObject {
     /// 当前速度（km/h）
     @Published var currentSpeed: Double = 0
 
+    // MARK: - 发布属性（POI 围栏相关）
+
+    /// 进入的 POI ID（当进入某个 POI 范围时设置）
+    @Published var enteredPOIId: UUID? = nil
+
     // MARK: - 私有属性
 
     /// CoreLocation 定位管理器
@@ -113,6 +118,9 @@ class LocationManager: NSObject, ObservableObject {
 
     /// 连续超速次数（用于区分GPS漂移和真正超速）
     private var consecutiveOverSpeedCount: Int = 0
+
+    /// 正在监控的 POI 围栏
+    private var monitoredPOIRegions: [CLCircularRegion] = []
 
     // MARK: - 常量
 
@@ -150,6 +158,9 @@ class LocationManager: NSObject, ObservableObject {
 
     /// 最小领地面积（平方米）
     private let minimumEnclosedArea: Double = 100.0
+
+    /// POI 搜刮触发距离（米）
+    private let poiTriggerRadius: Double = 50.0
 
     // MARK: - 计算属性
 
@@ -245,6 +256,67 @@ class LocationManager: NSObject, ObservableObject {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
         }
+    }
+
+    // MARK: - 公开方法（POI 围栏监控）
+
+    /// 为 POI 列表创建地理围栏
+    /// - Parameters:
+    ///   - pois: POI 数组
+    ///   - radius: 围栏半径（米），默认 50 米
+    /// - Note: iOS 限制每个 App 最多监控 20 个地理围栏
+    func startMonitoringPOIs(_ pois: [POI], radius: Double? = nil) {
+        let triggerRadius = radius ?? poiTriggerRadius
+
+        // 先停止之前的监控
+        stopMonitoringAllPOIs()
+
+        // iOS 限制：每个 App 最多 20 个地理围栏
+        let maxRegions = 20
+        let poisToMonitor = Array(pois.prefix(maxRegions))
+
+        if pois.count > maxRegions {
+            print("📍 [POI围栏] ⚠️ POI 数量 \(pois.count) 超过限制 \(maxRegions)，只监控前 \(maxRegions) 个")
+        }
+
+        print("📍 [POI围栏] 开始监控 \(poisToMonitor.count) 个 POI，半径 \(triggerRadius)m")
+
+        for poi in poisToMonitor {
+            // ⚠️ 重要：POI 坐标存储为 WGS-84，但 CLLocationManager 在中国使用 GCJ-02
+            // 所以需要将 WGS-84 转换回 GCJ-02 来创建围栏，否则会有 300-500m 偏移
+            let gcjCoordinate = CoordinateConverter.wgs84ToGcj02(poi.coordinate)
+
+            let region = CLCircularRegion(
+                center: gcjCoordinate,
+                radius: triggerRadius,
+                identifier: poi.id.uuidString
+            )
+            region.notifyOnEntry = true
+            region.notifyOnExit = false  // 只关心进入，不关心离开
+
+            locationManager.startMonitoring(for: region)
+            monitoredPOIRegions.append(region)
+
+            print("📍 [POI围栏] 监控: \(poi.name) (\(poi.id.uuidString.prefix(8))...) GCJ-02: \(gcjCoordinate.latitude), \(gcjCoordinate.longitude)")
+        }
+    }
+
+    /// 停止所有 POI 围栏监控
+    func stopMonitoringAllPOIs() {
+        guard !monitoredPOIRegions.isEmpty else { return }
+
+        print("📍 [POI围栏] 停止监控 \(monitoredPOIRegions.count) 个围栏")
+
+        for region in monitoredPOIRegions {
+            locationManager.stopMonitoring(for: region)
+        }
+        monitoredPOIRegions.removeAll()
+        enteredPOIId = nil
+    }
+
+    /// 清除进入的 POI 状态
+    func clearEnteredPOI() {
+        enteredPOIId = nil
     }
 
     // MARK: - 公开方法（路径追踪相关）
@@ -944,6 +1016,21 @@ extension LocationManager: CLLocationManagerDelegate {
         Task { @MainActor in
             self.locationError = error.localizedDescription
             print("📍 [定位管理器] 定位失败: \(error.localizedDescription)")
+        }
+    }
+
+    /// 进入地理围栏（POI 范围）
+    nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        guard let circularRegion = region as? CLCircularRegion else { return }
+
+        print("📍 [POI围栏] 进入围栏: \(circularRegion.identifier)")
+
+        // 尝试解析 POI ID
+        if let poiId = UUID(uuidString: circularRegion.identifier) {
+            Task { @MainActor in
+                self.enteredPOIId = poiId
+                print("📍 [POI围栏] 触发 POI ID: \(poiId)")
+            }
         }
     }
 }

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - 奖励等级
 
@@ -71,6 +72,58 @@ enum RewardTier: String, Codable {
         case .silver: return "gray"
         case .gold: return "yellow"
         case .diamond: return "cyan"
+        }
+    }
+
+    // MARK: - 徽章样式属性（用于探索结果页面）
+
+    /// 徽章图标（SF Symbol）
+    var badgeIcon: String {
+        switch self {
+        case .none: return "figure.walk"
+        case .bronze: return "medal.fill"
+        case .silver: return "medal.fill"
+        case .gold: return "crown.fill"
+        case .diamond: return "diamond.fill"
+        }
+    }
+
+    /// 徽章主色
+    var badgeColor: Color {
+        switch self {
+        case .none: return .gray
+        case .bronze: return Color(red: 0.80, green: 0.50, blue: 0.20)  // 铜色
+        case .silver: return Color(red: 0.75, green: 0.75, blue: 0.80)  // 银色
+        case .gold: return Color(red: 1.0, green: 0.84, blue: 0.0)      // 金色
+        case .diamond: return Color(red: 0.0, green: 0.75, blue: 1.0)   // 钻石蓝
+        }
+    }
+
+    /// 徽章渐变色数组
+    var badgeGradient: [Color] {
+        switch self {
+        case .none:
+            return [.gray, .gray.opacity(0.7)]
+        case .bronze:
+            return [
+                Color(red: 0.90, green: 0.60, blue: 0.30),  // 亮铜色
+                Color(red: 0.70, green: 0.40, blue: 0.15)   // 暗铜色
+            ]
+        case .silver:
+            return [
+                Color(red: 0.85, green: 0.85, blue: 0.90),  // 亮银色
+                Color(red: 0.60, green: 0.60, blue: 0.70)   // 暗银色
+            ]
+        case .gold:
+            return [
+                Color(red: 1.0, green: 0.90, blue: 0.40),   // 亮金色
+                Color(red: 0.85, green: 0.65, blue: 0.0)    // 暗金色
+            ]
+        case .diamond:
+            return [
+                Color(red: 0.4, green: 0.9, blue: 1.0),     // 亮钻石蓝
+                Color(red: 0.0, green: 0.6, blue: 0.9)      // 暗钻石蓝
+            ]
         }
     }
 }

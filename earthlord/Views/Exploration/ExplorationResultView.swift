@@ -183,10 +183,13 @@ struct ExplorationResultView: View {
     // MARK: - 成功状态内容
 
     private func successContentView(result: ExplorationResult, stats: ExplorationStats) -> some View {
-        ScrollView {
+        // 根据行走距离计算奖励等级
+        let tier = RewardTier.from(distance: result.distanceWalked)
+
+        return ScrollView {
             VStack(spacing: 24) {
-                // 成就标题
-                achievementHeader
+                // 成就标题（带等级徽章）
+                achievementHeader(tier: tier)
                     .padding(.top, 30)
 
                 // 统计数据卡片
@@ -207,15 +210,15 @@ struct ExplorationResultView: View {
 
     // MARK: - 成就标题
 
-    private var achievementHeader: some View {
+    private func achievementHeader(tier: RewardTier) -> some View {
         VStack(spacing: 16) {
-            // 大图标（带动画）
+            // 大图标（带动画）- 根据等级显示不同徽章
             ZStack {
                 // 光晕效果
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [ApocalypseTheme.primary.opacity(0.3), Color.clear],
+                            colors: [tier.badgeColor.opacity(0.3), Color.clear],
                             center: .center,
                             startRadius: 30,
                             endRadius: 80
@@ -229,7 +232,7 @@ struct ExplorationResultView: View {
                 Circle()
                     .strokeBorder(
                         LinearGradient(
-                            colors: [ApocalypseTheme.primary, ApocalypseTheme.primaryDark],
+                            colors: tier.badgeGradient,
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
@@ -238,11 +241,38 @@ struct ExplorationResultView: View {
                     .frame(width: 100, height: 100)
                     .scaleEffect(showContent ? 1.0 : 0.3)
 
-                // 图标
-                Image(systemName: "map.fill")
+                // 徽章图标
+                Image(systemName: tier.badgeIcon)
                     .font(.system(size: 44))
-                    .foregroundColor(ApocalypseTheme.primary)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: tier.badgeGradient,
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                     .scaleEffect(showContent ? 1.0 : 0.3)
+            }
+
+            // 等级标签
+            if tier != .none {
+                Text(tier.displayName)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: tier.badgeGradient,
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    )
+                    .scaleEffect(showContent ? 1.0 : 0.5)
+                    .opacity(showContent ? 1.0 : 0)
             }
 
             // 标题文字
@@ -251,9 +281,9 @@ struct ExplorationResultView: View {
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(ApocalypseTheme.textPrimary)
 
-                Text("你发现了新的物资")
+                Text(tier == .none ? "距离不足，未获得奖励" : "你发现了新的物资")
                     .font(.subheadline)
-                    .foregroundColor(ApocalypseTheme.textSecondary)
+                    .foregroundColor(tier == .none ? ApocalypseTheme.textMuted : ApocalypseTheme.textSecondary)
             }
             .opacity(showContent ? 1.0 : 0)
             .offset(y: showContent ? 0 : 20)

@@ -263,12 +263,22 @@ class TerritoryManager: ObservableObject {
     ///   - currentUserId: 当前用户 ID
     /// - Returns: 碰撞检测结果
     func checkPointCollision(location: CLLocationCoordinate2D, currentUserId: String) -> CollisionResult {
+        // 🔍 调试日志
+        print("🔍 [碰撞检测] checkPointCollision 被调用")
+        print("🔍 [碰撞检测] currentUserId: \(currentUserId)")
+        print("🔍 [碰撞检测] 总领地数: \(territories.count)")
+
         // 筛选他人领地
         let otherTerritories = territories.filter { territory in
-            territory.ownerId.uuidString.lowercased() != currentUserId.lowercased()
+            let isOwn = territory.ownerId.uuidString.lowercased() == currentUserId.lowercased()
+            print("🔍 [碰撞检测] 领地 \(territory.id): ownerId=\(territory.ownerId.uuidString.lowercased()), 是自己的=\(isOwn)")
+            return !isOwn
         }
 
+        print("🔍 [碰撞检测] 过滤后他人领地数: \(otherTerritories.count)")
+
         guard !otherTerritories.isEmpty else {
+            print("🔍 [碰撞检测] 没有他人领地，返回 safe")
             return .safe
         }
 
@@ -364,10 +374,19 @@ class TerritoryManager: ObservableObject {
     ///   - currentUserId: 当前用户 ID
     /// - Returns: 最近距离（米），如果没有他人领地则返回无穷大
     func calculateMinDistanceToTerritories(location: CLLocationCoordinate2D, currentUserId: String) -> Double {
+        // 🔍 调试日志（只在首次或偶尔打印，避免刷屏）
+        print("🔍 [距离计算] currentUserId: \(currentUserId), 总领地数: \(territories.count)")
+
         // 筛选他人领地
         let otherTerritories = territories.filter { territory in
-            territory.ownerId.uuidString.lowercased() != currentUserId.lowercased()
+            let isOwn = territory.ownerId.uuidString.lowercased() == currentUserId.lowercased()
+            if isOwn {
+                print("🔍 [距离计算] ✅ 跳过自己的领地: \(territory.id)")
+            }
+            return !isOwn
         }
+
+        print("🔍 [距离计算] 他人领地数: \(otherTerritories.count)")
 
         guard !otherTerritories.isEmpty else { return Double.infinity }
 

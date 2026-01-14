@@ -8,6 +8,7 @@
 
 import Foundation
 import CoreLocation
+import UIKit
 
 // MARK: - ==================== 物品定义 ====================
 
@@ -469,6 +470,8 @@ enum POIType: String, Codable {
     case house = "house"                  // 民宅
     case police = "police"                // 警察局
     case military = "military"            // 军事设施
+    case restaurant = "restaurant"        // 餐厅
+    case cafe = "cafe"                    // 咖啡店
 
     /// 中文显示名称
     var displayName: String {
@@ -482,6 +485,8 @@ enum POIType: String, Codable {
         case .house: return "民宅"
         case .police: return "警察局"
         case .military: return "军事设施"
+        case .restaurant: return "餐厅"
+        case .cafe: return "咖啡店"
         }
     }
 
@@ -497,13 +502,32 @@ enum POIType: String, Codable {
         case .house: return "house.fill"
         case .police: return "shield.lefthalf.filled"
         case .military: return "star.fill"
+        case .restaurant: return "fork.knife"
+        case .cafe: return "cup.and.saucer.fill"
+        }
+    }
+
+    /// 地图标记颜色
+    var markerColor: UIColor {
+        switch self {
+        case .supermarket: return .systemGreen
+        case .hospital: return .systemRed
+        case .gasStation: return .systemOrange
+        case .pharmacy: return .systemPink
+        case .factory: return .systemGray
+        case .warehouse: return .systemBrown
+        case .house: return .systemTeal
+        case .police: return .systemBlue
+        case .military: return .systemPurple
+        case .restaurant: return .systemYellow
+        case .cafe: return .brown
         }
     }
 }
 
 /// 兴趣点（POI）
 /// 地图上可探索的地点
-struct POI: Identifiable, Codable {
+struct POI: Identifiable, Codable, Equatable {
     let id: UUID                           // 唯一标识
     let name: String                       // 地点名称
     let type: POIType                      // POI 类型
@@ -565,6 +589,20 @@ struct POI: Identifiable, Codable {
         try container.encode(resourceStatus, forKey: .resourceStatus)
         try container.encode(dangerLevel, forKey: .dangerLevel)
         try container.encode(description, forKey: .description)
+    }
+
+    // MARK: - Equatable
+
+    static func == (lhs: POI, rhs: POI) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.name == rhs.name &&
+        lhs.type == rhs.type &&
+        lhs.coordinate.latitude == rhs.coordinate.latitude &&
+        lhs.coordinate.longitude == rhs.coordinate.longitude &&
+        lhs.discoveryStatus == rhs.discoveryStatus &&
+        lhs.resourceStatus == rhs.resourceStatus &&
+        lhs.dangerLevel == rhs.dangerLevel &&
+        lhs.description == rhs.description
     }
 }
 

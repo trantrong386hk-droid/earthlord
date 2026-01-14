@@ -16,6 +16,27 @@ class TrackingPolyline: MKPolyline {}
 /// 自定义 Overlay 类，用于区分领地多边形
 class TerritoryPolygon: MKPolygon {}
 
+// MARK: - POI 标注类
+/// POI 地图标注
+class POIAnnotation: NSObject, MKAnnotation {
+    let poi: POI
+    var isScavenged: Bool
+
+    var coordinate: CLLocationCoordinate2D {
+        // 转换为 GCJ-02 坐标
+        CoordinateConverter.wgs84ToGcj02(poi.coordinate)
+    }
+
+    var title: String? { poi.name }
+    var subtitle: String? { poi.type.displayName }
+
+    init(poi: POI, isScavenged: Bool) {
+        self.poi = poi
+        self.isScavenged = isScavenged
+        super.init()
+    }
+}
+
 // MARK: - 地图视图包装器
 /// 将 MKMapView 包装为 SwiftUI 视图
 struct MapViewRepresentable: UIViewRepresentable {
@@ -52,6 +73,14 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     /// 当前用户 ID（用于区分自己的领地和他人领地）
     var currentUserId: String?
+
+    // MARK: - POI 显示属性
+
+    /// 附近 POI 列表
+    var pois: [POI] = []
+
+    /// 已搜刮的 POI ID 集合
+    var scavengedPOIIds: Set<UUID> = []
 
     // MARK: - UIViewRepresentable
 
@@ -115,6 +144,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         // 更新领地显示
         drawTerritories(on: mapView, context: context)
+
+        // 更新 POI 标记
+        updatePOIAnnotations(on: mapView, context: context)
     }
 
     // MARK: - 轨迹渲染
@@ -206,6 +238,43 @@ struct MapViewRepresentable: UIViewRepresentable {
         print("🏴 [领地渲染] 绘制 \(territories.count) 个领地")
     }
 
+    // MARK: - POI 标记渲染
+
+    /// 更新 POI 标记显示
+    private func updatePOIAnnotations(on mapView: MKMapView, context: Context) {
+        // 使用更可靠的哈希计算：包含 POI ID 的哈希值
+        let poiIdsHash = pois.map { $0.id.hashValue }.reduce(0, ^)
+        let currentPOIHash = pois.count * 10000 + scavengedPOIIds.count * 100 + (poiIdsHash & 0xFF)
+
+        guard context.coordinator.lastPOIHash != currentPOIHash else {
+            return
+        }
+
+        // 更新记录
+        context.coordinator.lastPOIHash = currentPOIHash
+
+        print("🏪 [POI渲染] 检测到 POI 变化，开始更新标记")
+
+        // 移除旧的 POI 标记
+        let existingAnnotations = mapView.annotations.compactMap { $0 as? POIAnnotation }
+        mapView.removeAnnotations(existingAnnotations)
+
+        // 如果没有 POI，直接返回
+        guard !pois.isEmpty else {
+            print("🏪 [POI渲染] 无 POI 可显示")
+            return
+        }
+
+        // 添加新的 POI 标记
+        for poi in pois {
+            let isScavenged = scavengedPOIIds.contains(poi.id)
+            let annotation = POIAnnotation(poi: poi, isScavenged: isScavenged)
+            mapView.addAnnotation(annotation)
+        }
+
+        print("🏪 [POI渲染] 显示 \(pois.count) 个 POI 标记，已搜刮 \(scavengedPOIIds.count) 个")
+    }
+
     /// 创建 Coordinator
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -248,6 +317,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         /// 领地数量（用于判断是否需要重绘）
         var lastTerritoriesCount: Int = -1
+
+        /// POI 哈希值（用于判断是否需要重绘）
+        var lastPOIHash: Int = -1
 
         init(_ parent: MapViewRepresentable) {
             self.parent = parent
@@ -311,6 +383,44 @@ struct MapViewRepresentable: UIViewRepresentable {
         /// 用户位置追踪失败
         func mapView(_ mapView: MKMapView, didFailToLocateUserWithError error: Error) {
             print("🗺️ [地图视图] 定位失败: \(error.localizedDescription)")
+        }
+
+        // MARK: - Annotation 渲染
+
+        /// 为 Annotation 提供自定义视图
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            // 忽略用户位置标注
+            guard !(annotation is MKUserLocation) else { return nil }
+
+            // 处理 POI 标注
+            guard let poiAnnotation = annotation as? POIAnnotation else { return nil }
+
+            let identifier = "POIMarker"
+            var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
+
+            if annotationView == nil {
+                annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                annotationView?.canShowCallout = true
+            } else {
+                annotationView?.annotation = annotation
+            }
+
+            // 设置图标
+            annotationView?.glyphImage = UIImage(systemName: poiAnnotation.poi.type.iconName)
+
+            // 始终显示标题（POI 名称）
+            annotationView?.titleVisibility = .visible
+
+            // 设置颜色（已搜刮为灰色，未搜刮使用 POI 类型颜色）
+            if poiAnnotation.isScavenged {
+                annotationView?.markerTintColor = .systemGray
+                annotationView?.alpha = 0.6
+            } else {
+                annotationView?.markerTintColor = poiAnnotation.poi.type.markerColor
+                annotationView?.alpha = 1.0
+            }
+
+            return annotationView
         }
 
         // MARK: - Overlay 渲染（关键！）
@@ -388,6 +498,8 @@ struct MapViewRepresentable: UIViewRepresentable {
         isTracking: false,
         isPathClosed: false,
         territories: [],
-        currentUserId: nil
+        currentUserId: nil,
+        pois: [],
+        scavengedPOIIds: []
     )
 }
