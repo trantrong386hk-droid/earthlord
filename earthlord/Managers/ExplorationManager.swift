@@ -12,6 +12,46 @@ import CoreLocation
 import Combine
 import Supabase
 
+// MARK: - 玩家密度等级
+
+/// 玩家密度等级（用于决定 POI 显示数量）
+enum PlayerDensity {
+    case solo       // 0人 - 独行者
+    case low        // 1-5人 - 低密度
+    case medium     // 6-20人 - 中密度
+    case high       // 20+人 - 高密度
+
+    /// 根据玩家数量判断密度等级
+    static func from(playerCount: Int) -> PlayerDensity {
+        switch playerCount {
+        case 0: return .solo
+        case 1...5: return .low
+        case 6...20: return .medium
+        default: return .high
+        }
+    }
+
+    /// 建议的 POI 显示数量
+    var suggestedPOICount: Int {
+        switch self {
+        case .solo: return 1
+        case .low: return 3
+        case .medium: return 6
+        case .high: return Int.max  // 显示所有
+        }
+    }
+
+    /// 密度等级描述
+    var description: String {
+        switch self {
+        case .solo: return "独行者"
+        case .low: return "低密度"
+        case .medium: return "中密度"
+        case .high: return "高密度"
+        }
+    }
+}
+
 // MARK: - 探索状态
 
 /// 探索状态
@@ -103,6 +143,9 @@ class ExplorationManager: ObservableObject {
     /// 搜刮获得的物品
     @Published var scavengeLoot: [ExplorationLoot] = []
 
+    /// 当前玩家密度等级
+    @Published var playerDensity: PlayerDensity = .solo
+
     // MARK: - 独立追踪属性（不依赖 LocationManager 的 pathTracking）
 
     /// 探索行走距离（米）- 独立追踪
@@ -127,6 +170,9 @@ class ExplorationManager: ObservableObject {
 
     /// 上次记录的位置（用于计算距离）
     private var lastExplorationLocation: CLLocation?
+
+    /// 上次位置更新时间（用于计算速度）
+    private var lastLocationUpdateTime: Date?
 
     /// 订阅集合
     private var cancellables = Set<AnyCancellable>()
@@ -233,30 +279,42 @@ class ExplorationManager: ObservableObject {
         print("🔍 [探索] 位置监控已设置（独立距离计算）")
     }
 
-    /// 处理位置更新（计算距离 + POI 检测）
+    /// 处理位置更新（计算距离 + 速度 + POI 检测）
     private func handleLocationUpdate(_ coordinate: CLLocationCoordinate2D) {
         // 只在探索中时处理
         guard state == .exploring else { return }
 
         let newLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let now = Date()
 
-        // 如果有上次位置，计算距离
-        if let lastLocation = lastExplorationLocation {
+        // 如果有上次位置，计算距离和速度
+        if let lastLocation = lastExplorationLocation, let lastTime = lastLocationUpdateTime {
             let distance = newLocation.distance(from: lastLocation)
+            let timeDiff = now.timeIntervalSince(lastTime)
 
-            // 过滤 GPS 漂移（距离过大或速度过快）
-            let timeDiff = newLocation.timestamp.timeIntervalSince(lastLocation.timestamp)
-            let speed = timeDiff > 0 ? (distance / timeDiff) * 3.6 : 0  // km/h
+            // 计算速度（km/h）
+            if timeDiff > 0 {
+                let speed = (distance / timeDiff) * 3.6  // km/h
 
-            // 只有合理的移动才计入距离（排除 GPS 漂移）
-            if distance >= 3 && distance <= 100 && speed < gpsDriftThreshold {
-                explorationDistance += distance
-                print("🔍 [探索] 距离更新: +\(String(format: "%.1f", distance))m，总计: \(String(format: "%.0f", explorationDistance))m")
+                // 过滤 GPS 漂移（速度异常高）
+                if speed < gpsDriftThreshold {
+                    currentSpeed = speed
+                    print("🔍 [探索] 速度: \(String(format: "%.1f", speed)) km/h")
+                } else {
+                    print("🔍 [探索] 🛰️ GPS漂移忽略: \(String(format: "%.1f", speed)) km/h")
+                }
+
+                // 只有合理的移动才计入距离（排除 GPS 漂移）
+                if distance >= 3 && distance <= 100 && speed < gpsDriftThreshold {
+                    explorationDistance += distance
+                    print("🔍 [探索] 距离更新: +\(String(format: "%.1f", distance))m，总计: \(String(format: "%.0f", explorationDistance))m")
+                }
             }
         }
 
-        // 更新上次位置
+        // 更新上次位置和时间
         lastExplorationLocation = newLocation
+        lastLocationUpdateTime = now
 
         // ⭐ 方案B：基于距离的 POI 检测（比围栏更可靠）
         checkPOIProximity(userLocation: newLocation)
@@ -265,9 +323,19 @@ class ExplorationManager: ObservableObject {
     /// 检测是否接近 POI（距离检测方式）
     private func checkPOIProximity(userLocation: CLLocation) {
         // 如果正在显示弹窗，不检测
-        guard !showPOIPopup && !showScavengeResult else { return }
+        guard !showPOIPopup && !showScavengeResult else {
+            print("🏪 [POI] 跳过检测：弹窗正在显示 (popup=\(showPOIPopup), result=\(showScavengeResult))")
+            return
+        }
 
-        // 遍历所有 POI，检查距离
+        // 检查 POI 列表
+        if nearbyPOIs.isEmpty {
+            return
+        }
+
+        // 遍历所有 POI，找到距离最近的那个
+        var nearestPOI: (poi: POI, distance: Double)?
+
         for poi in nearbyPOIs {
             // 跳过已搜刮的 POI
             guard !scavengedPOIIds.contains(poi.id) else { continue }
@@ -280,16 +348,23 @@ class ExplorationManager: ObservableObject {
 
             let distance = userLocation.distance(from: poiLocation)
 
-            // 在触发距离内
-            if distance <= poiTriggerDistance {
-                print("🏪 [POI] ✅ 距离检测触发: \(poi.name)，距离 \(String(format: "%.1f", distance))m")
+            // 记录距离最近的 POI
+            if nearestPOI == nil || distance < nearestPOI!.distance {
+                nearestPOI = (poi, distance)
+            }
+        }
+
+        // 如果最近的 POI 在触发范围内，则触发弹窗
+        if let nearest = nearestPOI {
+            if nearest.distance <= poiTriggerDistance {
+                print("🏪 [POI] ✅ 距离检测触发: \(nearest.poi.name)，距离 \(String(format: "%.1f", nearest.distance))m")
 
                 // 设置当前 POI 并显示弹窗
-                currentPOI = poi
+                currentPOI = nearest.poi
                 showPOIPopup = true
-
-                // 只触发一个 POI，避免同时弹出多个
-                break
+            } else {
+                // 打印最近的 POI 信息
+                print("🏪 [POI] 最近: \(nearest.poi.name)，距离 \(String(format: "%.0f", nearest.distance))m（需≤\(Int(poiTriggerDistance))m）")
             }
         }
     }
@@ -420,6 +495,7 @@ class ExplorationManager: ObservableObject {
         explorationDistance = 0
         explorationDuration = 0
         lastExplorationLocation = nil
+        lastLocationUpdateTime = nil
 
         // 确保位置更新已启动（不使用 startPathTracking，避免影响圈地功能）
         print("🔍 [探索] 定位授权状态: \(locationManager.isAuthorized)")
@@ -438,6 +514,8 @@ class ExplorationManager: ObservableObject {
 
         // 搜索附近 POI
         Task {
+            // 🆕 先上报位置，确保自己被计入在线
+            await PlayerLocationManager.shared.reportLocationNow()
             await loadNearbyPOIs()
         }
     }
@@ -609,6 +687,7 @@ class ExplorationManager: ObservableObject {
         explorationDistance = 0
         explorationDuration = 0
         lastExplorationLocation = nil
+        lastLocationUpdateTime = nil
 
         // 停止定时器
         stopCountdownTimer()
@@ -622,6 +701,10 @@ class ExplorationManager: ObservableObject {
 
     /// 加载附近 POI（开始探索时调用）
     func loadNearbyPOIs() async {
+        // ========== 🧪 测试开关：改为 false 恢复真实搜索 ==========
+        let useTestPOI = false
+        // ===========================================================
+
         // 等待获取用户位置（最多等待 3 秒）
         var center: CLLocationCoordinate2D?
         let maxRetries = 6
@@ -643,11 +726,75 @@ class ExplorationManager: ObservableObject {
 
         print("🏪 [POI] 开始搜索附近 POI，中心点: \(validCenter.latitude), \(validCenter.longitude)")
 
+        // ========== 🧪 测试代码开始 ==========
+        if useTestPOI {
+            print("🧪 [测试] 使用测试 POI（南偏约 30 米）")
+
+            // ⚠️ 重要：用户位置在中国实际上是 GCJ-02
+            // 真实 POI 存储的是 WGS-84，所以我们需要：
+            // 1. 把用户位置（GCJ-02）转成 WGS-84
+            // 2. 加上偏移
+            // 这样在 checkPOIProximity 中转换回 GCJ-02 时才正确
+            let userWGS84 = CoordinateConverter.gcj02ToWgs84(validCenter)
+
+            // 创建一个测试 POI，在用户南边约 30 米处
+            let testPOI = POI(
+                id: UUID(),
+                name: "🧪测试废墟-便利店",
+                type: .supermarket,
+                coordinate: CLLocationCoordinate2D(
+                    latitude: userWGS84.latitude - 0.0003,  // 南偏约 33 米
+                    longitude: userWGS84.longitude
+                ),
+                discoveryStatus: .discovered,
+                resourceStatus: .unknown,
+                dangerLevel: 2,
+                description: "测试用 POI - 往南走约 30 米触发"
+            )
+
+            nearbyPOIs = [testPOI]
+            print("🧪 [测试] 用户位置 GCJ-02: \(validCenter.latitude), \(validCenter.longitude)")
+            print("🧪 [测试] 用户位置 WGS-84: \(userWGS84.latitude), \(userWGS84.longitude)")
+            print("🧪 [测试] 测试 POI (WGS-84): \(testPOI.coordinate.latitude), \(testPOI.coordinate.longitude)")
+            print("🧪 [测试] 请往南走约 30 米，进入 50 米范围内触发弹窗")
+
+            // 立即检测一次
+            if let userCoord = locationManager.userLocation {
+                let userLocation = CLLocation(latitude: userCoord.latitude, longitude: userCoord.longitude)
+                checkPOIProximity(userLocation: userLocation)
+                print("🧪 [测试] 已执行初始距离检测")
+            }
+
+            return  // 跳过真实搜索
+        }
+        // ========== 🧪 测试代码结束 ==========
+
+        // 🆕 查询附近玩家密度
+        let nearbyCount = await PlayerLocationManager.shared.queryNearbyPlayers()
+        playerDensity = PlayerDensity.from(playerCount: nearbyCount)
+        let maxPOIs = playerDensity.suggestedPOICount
+
+        print("🏪 [POI] 附近玩家: \(nearbyCount) 人，密度: \(playerDensity.description)，最多显示: \(maxPOIs == Int.max ? "全部" : "\(maxPOIs)") 个 POI")
+
         do {
-            let pois = try await poiSearchManager.searchNearbyPOIs(center: validCenter)
+            var pois = try await poiSearchManager.searchNearbyPOIs(center: validCenter)
+
+            // 🆕 根据密度限制 POI 数量（按距离排序已在 searchNearbyPOIs 中完成）
+            if maxPOIs != Int.max && pois.count > maxPOIs {
+                pois = Array(pois.prefix(maxPOIs))
+                print("🏪 [POI] 根据密度限制，显示 \(pois.count) 个 POI")
+            }
 
             nearbyPOIs = pois
             print("🏪 [POI] ✅ 找到 \(pois.count) 个 POI，已更新 nearbyPOIs")
+
+            // 打印每个 POI 的详细信息
+            for (index, poi) in pois.prefix(5).enumerated() {
+                print("🏪 [POI]   \(index + 1). \(poi.name) - WGS84: (\(String(format: "%.6f", poi.coordinate.latitude)), \(String(format: "%.6f", poi.coordinate.longitude)))")
+            }
+            if pois.count > 5 {
+                print("🏪 [POI]   ... 还有 \(pois.count - 5) 个")
+            }
 
             // 启动地理围栏监控（作为备用）
             if !pois.isEmpty {
