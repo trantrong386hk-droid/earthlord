@@ -103,6 +103,14 @@ class ExplorationManager: ObservableObject {
     /// 搜刮获得的物品
     @Published var scavengeLoot: [ExplorationLoot] = []
 
+    // MARK: - 独立追踪属性（不依赖 LocationManager 的 pathTracking）
+
+    /// 探索行走距离（米）- 独立追踪
+    @Published var explorationDistance: Double = 0
+
+    /// 探索时长（秒）- 独立追踪
+    @Published var explorationDuration: TimeInterval = 0
+
     // MARK: - 私有属性
 
     /// 速度检测定时器
@@ -113,6 +121,12 @@ class ExplorationManager: ObservableObject {
 
     /// 倒计时定时器
     private var countdownTimer: Timer?
+
+    /// 探索时长更新定时器
+    private var durationTimer: Timer?
+
+    /// 上次记录的位置（用于计算距离）
+    private var lastExplorationLocation: CLLocation?
 
     /// 订阅集合
     private var cancellables = Set<AnyCancellable>()
@@ -133,24 +147,30 @@ class ExplorationManager: ObservableObject {
 
     // MARK: - 计算属性
 
-    /// 当前行走距离（来自 LocationManager）
+    /// 当前行走距离（独立追踪）
     var currentDistance: Double {
-        locationManager.totalDistance
+        explorationDistance
     }
 
-    /// 当前时长（来自 LocationManager）
+    /// 当前时长（独立追踪）
     var currentDuration: TimeInterval {
-        locationManager.trackingDuration
+        explorationDuration
     }
 
     /// 格式化当前距离
     var formattedDistance: String {
-        locationManager.formattedDistance
+        if explorationDistance >= 1000 {
+            return String(format: "%.1f 公里", explorationDistance / 1000)
+        } else {
+            return String(format: "%.0f 米", explorationDistance)
+        }
     }
 
     /// 格式化当前时长
     var formattedDuration: String {
-        locationManager.formattedDuration
+        let minutes = Int(explorationDuration) / 60
+        let seconds = Int(explorationDuration) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 
     /// 当前预估奖励等级
@@ -164,6 +184,7 @@ class ExplorationManager: ObservableObject {
         print("🔍 [ExplorationManager] 初始化")
         setupSpeedObserver()
         setupPOIObserver()
+        setupLocationObserver()
     }
 
     // MARK: - 速度监控
@@ -193,6 +214,46 @@ class ExplorationManager: ObservableObject {
             .store(in: &cancellables)
 
         print("🔍 [探索] POI 围栏监控已设置")
+    }
+
+    /// 设置位置观察者（用于独立计算距离）
+    private func setupLocationObserver() {
+        // 监听 LocationManager 的位置变化
+        locationManager.$userLocation
+            .receive(on: DispatchQueue.main)
+            .compactMap { $0 }  // 只处理非 nil 值
+            .sink { [weak self] coordinate in
+                self?.handleLocationUpdate(coordinate)
+            }
+            .store(in: &cancellables)
+
+        print("🔍 [探索] 位置监控已设置（独立距离计算）")
+    }
+
+    /// 处理位置更新（计算距离）
+    private func handleLocationUpdate(_ coordinate: CLLocationCoordinate2D) {
+        // 只在探索中时计算距离
+        guard state == .exploring else { return }
+
+        let newLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+
+        // 如果有上次位置，计算距离
+        if let lastLocation = lastExplorationLocation {
+            let distance = newLocation.distance(from: lastLocation)
+
+            // 过滤 GPS 漂移（距离过大或速度过快）
+            let timeDiff = newLocation.timestamp.timeIntervalSince(lastLocation.timestamp)
+            let speed = timeDiff > 0 ? (distance / timeDiff) * 3.6 : 0  // km/h
+
+            // 只有合理的移动才计入距离（排除 GPS 漂移）
+            if distance >= 3 && distance <= 100 && speed < gpsDriftThreshold {
+                explorationDistance += distance
+                print("🔍 [探索] 距离更新: +\(String(format: "%.1f", distance))m，总计: \(String(format: "%.0f", explorationDistance))m")
+            }
+        }
+
+        // 更新上次位置
+        lastExplorationLocation = newLocation
     }
 
     /// 处理速度更新
@@ -317,22 +378,23 @@ class ExplorationManager: ObservableObject {
         speedViolationCountdown = 0
         currentSpeed = 0
 
-        // ⚠️ 重要：先确保之前的追踪已停止，避免 isTracking 状态冲突
-        // 如果 isTracking 已经是 true，startPathTracking() 会直接返回，不创建定时器
-        print("🔍 [探索] 当前 isTracking 状态: \(locationManager.isTracking)")
-        if locationManager.isTracking {
-            print("🔍 [探索] ⚠️ 检测到遗留的追踪状态，先停止...")
-            locationManager.stopPathTracking()
-        }
+        // 重置独立追踪状态
+        explorationDistance = 0
+        explorationDuration = 0
+        lastExplorationLocation = nil
 
-        // 启动位置追踪（复用 LocationManager）
-        print("🔍 [探索] 准备启动位置追踪...")
+        // 确保位置更新已启动（不使用 startPathTracking，避免影响圈地功能）
         print("🔍 [探索] 定位授权状态: \(locationManager.isAuthorized)")
         print("🔍 [探索] 当前位置是否可用: \(locationManager.userLocation != nil)")
 
-        locationManager.startPathTracking()
+        if !locationManager.isLocating {
+            locationManager.startUpdatingLocation()
+        }
 
-        print("🔍 [探索] 位置追踪已启动，isTracking = \(locationManager.isTracking)")
+        // 启动时长计时器
+        startDurationTimer()
+
+        print("🔍 [探索] 探索已启动（独立追踪模式）")
         print("🔍 [探索] 速度限制: \(maxSpeedLimit) km/h")
         print("🔍 [探索] 超速容忍时间: \(speedViolationTimeout) 秒")
 
@@ -340,6 +402,29 @@ class ExplorationManager: ObservableObject {
         Task {
             await loadNearbyPOIs()
         }
+    }
+
+    /// 启动时长计时器
+    private func startDurationTimer() {
+        stopDurationTimer()
+
+        durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateDuration()
+            }
+        }
+    }
+
+    /// 停止时长计时器
+    private func stopDurationTimer() {
+        durationTimer?.invalidate()
+        durationTimer = nil
+    }
+
+    /// 更新时长
+    private func updateDuration() {
+        guard state == .exploring, let start = startTime else { return }
+        explorationDuration = Date().timeIntervalSince(start)
     }
 
     /// 结束探索
@@ -358,14 +443,15 @@ class ExplorationManager: ObservableObject {
         speedWarning = nil
         isOverSpeed = false
 
-        // ⚠️ 重要：先获取探索数据（在停止追踪之前！）
-        // 因为 stopPathTracking() 会清空 totalDistance 等数据
-        let distance = locationManager.totalDistance
-        let duration = locationManager.trackingDuration
-        let path = Array(locationManager.pathCoordinates)  // 复制一份，避免被清空
+        // 停止时长计时器
+        stopDurationTimer()
 
-        // 然后停止位置追踪（这会清空数据）
-        locationManager.stopPathTracking()
+        // 获取探索数据（使用独立追踪的值）
+        let distance = explorationDistance
+        let duration = explorationDuration
+
+        // 探索不需要记录路径，传空数组
+        let path: [CLLocationCoordinate2D] = []
 
         // 判断奖励等级
         let tier = RewardTier.from(distance: distance)
@@ -439,8 +525,8 @@ class ExplorationManager: ObservableObject {
         // 停止速度监控
         stopCountdownTimer()
 
-        // 停止位置追踪
-        locationManager.stopPathTracking()
+        // 停止时长计时器
+        stopDurationTimer()
 
         // 清除 POI 状态
         clearPOIs()
@@ -481,11 +567,14 @@ class ExplorationManager: ObservableObject {
         speedViolationCountdown = 0
         currentSpeed = 0
 
+        // 重置独立追踪状态
+        explorationDistance = 0
+        explorationDuration = 0
+        lastExplorationLocation = nil
+
         // 停止定时器
         stopCountdownTimer()
-
-        // 清理 LocationManager 的路径数据
-        locationManager.clearPath()
+        stopDurationTimer()
 
         // 清理 POI 相关状态
         clearPOIs()
