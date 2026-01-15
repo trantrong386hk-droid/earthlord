@@ -141,9 +141,21 @@ class InventoryManager: ObservableObject {
             await loadItemDefinitions()
         }
 
-        // 批量插入
-        var uploads: [DBUserItemUpload] = []
+        // 1. 先查询用户现有物品
+        let existingItems: [DBUserItem] = try await supabase
+            .from("user_items")
+            .select()
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+            .value
 
+        // 构建现有物品映射（itemId -> 现有记录）
+        var existingMap: [UUID: DBUserItem] = [:]
+        for item in existingItems {
+            existingMap[item.itemId] = item
+        }
+
+        // 2. 处理每个新物品
         for item in loot {
             // 根据本地 itemId 查找数据库物品 UUID
             guard let dbItemId = findDBItemId(localId: item.itemId) else {
@@ -151,25 +163,33 @@ class InventoryManager: ObservableObject {
                 continue
             }
 
-            uploads.append(DBUserItemUpload(
-                userId: userId,
-                itemId: dbItemId,
-                quantity: item.quantity,
-                acquiredFrom: sourceType
-            ))
+            if let existing = existingMap[dbItemId] {
+                // 物品已存在，更新数量
+                let newQuantity = existing.quantity + item.quantity
+                let updateData = DBUserItemUpdate(quantity: newQuantity)
+                try await supabase
+                    .from("user_items")
+                    .update(updateData)
+                    .eq("id", value: existing.id.uuidString)
+                    .execute()
+                print("🎒 [背包] 更新物品数量: +\(item.quantity) -> \(newQuantity)")
+            } else {
+                // 物品不存在，插入新记录
+                let upload = DBUserItemUpload(
+                    userId: userId,
+                    itemId: dbItemId,
+                    quantity: item.quantity,
+                    acquiredFrom: sourceType
+                )
+                try await supabase
+                    .from("user_items")
+                    .insert(upload)
+                    .execute()
+                print("🎒 [背包] 插入新物品: \(item.itemId) x\(item.quantity)")
+            }
         }
 
-        guard !uploads.isEmpty else {
-            print("🎒 [背包] 没有有效物品需要添加")
-            return
-        }
-
-        try await supabase
-            .from("user_items")
-            .insert(uploads)
-            .execute()
-
-        print("🎒 [背包] 添加了 \(uploads.count) 种物品")
+        print("🎒 [背包] 添加物品完成")
 
         // 重新加载背包
         await loadInventory()

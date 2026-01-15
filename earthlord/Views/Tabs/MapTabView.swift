@@ -185,8 +185,10 @@ struct MapTabView: View {
 
                 // 底部按钮行：圈地 | 定位 | 探索
                 HStack(spacing: 12) {
-                    // 左侧：圈地按钮
-                    claimTerritoryButton
+                    // 左侧：圈地按钮（验证通过后隐藏，避免误点导致状态重置）
+                    if !locationManager.territoryValidationPassed {
+                        claimTerritoryButton
+                    }
 
                     // 中间：定位按钮
                     locationButton
