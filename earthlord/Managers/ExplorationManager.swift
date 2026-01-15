@@ -145,6 +145,9 @@ class ExplorationManager: ObservableObject {
     /// GPS 漂移阈值（km/h）- 超过此值视为 GPS 漂移，不计入超速
     private let gpsDriftThreshold: Double = 50.0
 
+    /// POI 触发距离（米）
+    private let poiTriggerDistance: Double = 50.0
+
     // MARK: - 计算属性
 
     /// 当前行走距离（独立追踪）
@@ -230,9 +233,9 @@ class ExplorationManager: ObservableObject {
         print("🔍 [探索] 位置监控已设置（独立距离计算）")
     }
 
-    /// 处理位置更新（计算距离）
+    /// 处理位置更新（计算距离 + POI 检测）
     private func handleLocationUpdate(_ coordinate: CLLocationCoordinate2D) {
-        // 只在探索中时计算距离
+        // 只在探索中时处理
         guard state == .exploring else { return }
 
         let newLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
@@ -254,6 +257,41 @@ class ExplorationManager: ObservableObject {
 
         // 更新上次位置
         lastExplorationLocation = newLocation
+
+        // ⭐ 方案B：基于距离的 POI 检测（比围栏更可靠）
+        checkPOIProximity(userLocation: newLocation)
+    }
+
+    /// 检测是否接近 POI（距离检测方式）
+    private func checkPOIProximity(userLocation: CLLocation) {
+        // 如果正在显示弹窗，不检测
+        guard !showPOIPopup && !showScavengeResult else { return }
+
+        // 遍历所有 POI，检查距离
+        for poi in nearbyPOIs {
+            // 跳过已搜刮的 POI
+            guard !scavengedPOIIds.contains(poi.id) else { continue }
+
+            // ⚠️ 重要：POI 坐标是 WGS-84，用户位置也是 WGS-84（CLLocation 原始值）
+            // 但在中国，CLLocationManager 返回的实际上是 GCJ-02
+            // 所以需要将 POI 的 WGS-84 转换为 GCJ-02 来比较
+            let poiGCJ = CoordinateConverter.wgs84ToGcj02(poi.coordinate)
+            let poiLocation = CLLocation(latitude: poiGCJ.latitude, longitude: poiGCJ.longitude)
+
+            let distance = userLocation.distance(from: poiLocation)
+
+            // 在触发距离内
+            if distance <= poiTriggerDistance {
+                print("🏪 [POI] ✅ 距离检测触发: \(poi.name)，距离 \(String(format: "%.1f", distance))m")
+
+                // 设置当前 POI 并显示弹窗
+                currentPOI = poi
+                showPOIPopup = true
+
+                // 只触发一个 POI，避免同时弹出多个
+                break
+            }
+        }
     }
 
     /// 处理速度更新
@@ -611,10 +649,17 @@ class ExplorationManager: ObservableObject {
             nearbyPOIs = pois
             print("🏪 [POI] ✅ 找到 \(pois.count) 个 POI，已更新 nearbyPOIs")
 
-            // 启动地理围栏监控
+            // 启动地理围栏监控（作为备用）
             if !pois.isEmpty {
                 locationManager.startMonitoringPOIs(pois)
-                print("🏪 [POI] 地理围栏监控已启动")
+                print("🏪 [POI] 地理围栏监控已启动（备用）")
+
+                // ⭐ 立即检测一次，以便用户已在 POI 附近时也能触发
+                if let userCoord = locationManager.userLocation {
+                    let userLocation = CLLocation(latitude: userCoord.latitude, longitude: userCoord.longitude)
+                    checkPOIProximity(userLocation: userLocation)
+                    print("🏪 [POI] 已执行初始 POI 距离检测")
+                }
             } else {
                 print("🏪 [POI] ⚠️ 附近没有找到任何 POI")
             }
