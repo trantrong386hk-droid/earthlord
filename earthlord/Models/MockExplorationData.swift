@@ -691,9 +691,44 @@ struct ExplorationLoot: Identifiable, Codable {
     let quantity: Int              // 获得数量
     let quality: ItemQuality?      // 品质（可选）
 
-    /// 获取物品定义
+    // MARK: - AI 生成字段
+
+    /// 是否为 AI 生成的物品
+    var isAIGenerated: Bool = false
+
+    /// AI 生成的物品名称
+    var aiName: String?
+
+    /// AI 生成的物品分类
+    var aiCategory: String?
+
+    /// AI 生成的物品稀有度
+    var aiRarity: String?
+
+    /// AI 生成的背景故事
+    var aiStory: String?
+
+    // MARK: - 计算属性
+
+    /// 获取物品定义（仅对非 AI 物品有效）
     var definition: ItemDefinition? {
         MockItemDefinitions.find(by: itemId)
+    }
+
+    /// 显示名称（优先使用 AI 名称）
+    var displayName: String {
+        if let aiName = aiName, !aiName.isEmpty {
+            return aiName
+        }
+        return definition?.name ?? "未知物品"
+    }
+
+    /// 显示稀有度（优先使用 AI 稀有度）
+    var displayRarity: ItemRarity {
+        if let aiRarity = aiRarity {
+            return ItemRarity(rawValue: aiRarity) ?? .common
+        }
+        return definition?.rarity ?? .common
     }
 }
 

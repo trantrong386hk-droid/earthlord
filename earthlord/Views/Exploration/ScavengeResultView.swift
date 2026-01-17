@@ -136,29 +136,33 @@ struct ScavengeResultView: View {
 
     /// 单个物品行
     private func lootItemRow(_ item: ExplorationLoot) -> some View {
-        HStack(spacing: 12) {
-            // 物品图标
-            if let definition = item.definition {
-                Image(systemName: definition.category.iconName)
-                    .font(.title2)
-                    .foregroundColor(rarityColor(definition.rarity))
-                    .frame(width: 44, height: 44)
-                    .background(rarityColor(definition.rarity).opacity(0.15))
-                    .cornerRadius(10)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                // 物品图标
+                itemIcon(for: item)
 
-            // 物品信息
-            VStack(alignment: .leading, spacing: 4) {
-                if let definition = item.definition {
-                    Text(definition.name)
+                // 物品信息
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.displayName)
                         .font(.subheadline.bold())
                         .foregroundColor(ApocalypseTheme.textPrimary)
 
                     HStack(spacing: 8) {
                         // 稀有度
-                        Text(definition.rarity.displayName)
+                        Text(item.displayRarity.displayName)
                             .font(.caption)
-                            .foregroundColor(rarityColor(definition.rarity))
+                            .foregroundColor(rarityColor(item.displayRarity))
+
+                        // AI 标记
+                        if item.isAIGenerated {
+                            Text("AI")
+                                .font(.caption2.bold())
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(ApocalypseTheme.primary)
+                                .cornerRadius(4)
+                        }
 
                         // 品质（如果有）
                         if let quality = item.quality {
@@ -168,18 +172,63 @@ struct ScavengeResultView: View {
                         }
                     }
                 }
+
+                Spacer()
+
+                // 数量
+                Text("×\(item.quantity)")
+                    .font(.headline.bold().monospacedDigit())
+                    .foregroundColor(ApocalypseTheme.textPrimary)
             }
 
-            Spacer()
-
-            // 数量
-            Text("×\(item.quantity)")
-                .font(.headline.bold().monospacedDigit())
-                .foregroundColor(ApocalypseTheme.textPrimary)
+            // AI 故事（如果有）
+            if let story = item.aiStory, !story.isEmpty {
+                Text(story)
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+                    .padding(.top, 4)
+                    .lineLimit(nil)
+            }
         }
         .padding(12)
         .background(ApocalypseTheme.background.opacity(0.5))
         .cornerRadius(12)
+    }
+
+    /// 物品图标（支持 AI 物品）
+    private func itemIcon(for item: ExplorationLoot) -> some View {
+        let iconName: String
+        let color: Color
+
+        if item.isAIGenerated {
+            iconName = categoryIcon(item.aiCategory ?? "杂项")
+            color = rarityColor(item.displayRarity)
+        } else if let definition = item.definition {
+            iconName = definition.category.iconName
+            color = rarityColor(definition.rarity)
+        } else {
+            iconName = "questionmark.circle"
+            color = .gray
+        }
+
+        return Image(systemName: iconName)
+            .font(.title2)
+            .foregroundColor(color)
+            .frame(width: 44, height: 44)
+            .background(color.opacity(0.15))
+            .cornerRadius(10)
+    }
+
+    /// AI 分类图标映射
+    private func categoryIcon(_ category: String) -> String {
+        switch category {
+        case "医疗": return "cross.case.fill"
+        case "食物": return "fork.knife"
+        case "工具": return "wrench.and.screwdriver.fill"
+        case "武器": return "bolt.fill"
+        case "材料": return "cube.fill"
+        default: return "shippingbox.fill"
+        }
     }
 
     /// 稀有度颜色

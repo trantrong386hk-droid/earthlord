@@ -854,14 +854,39 @@ class ExplorationManager: ObservableObject {
 
     /// 执行搜刮
     func scavengePOI(_ poi: POI) async {
-        print("🏪 [POI] 开始搜刮: \(poi.name)")
+        print("🏪 [POI] 开始搜刮: \(poi.name)，危险等级: \(poi.dangerLevel)")
 
         // 关闭提示弹窗
         showPOIPopup = false
 
-        // 生成搜刮物品
-        scavengeLoot = generateScavengeLoot(for: poi)
-        print("🏪 [POI] 生成 \(scavengeLoot.count) 件物品")
+        // 计算物品数量（危险等级越高，物品越多）
+        let baseCount = 1
+        let bonusFromDanger = min(poi.dangerLevel / 2, 2)
+        let itemCount = baseCount + bonusFromDanger
+
+        // 🆕 尝试 AI 生成物品
+        if let aiItems = await AIItemGenerator.shared.generateItems(for: poi, count: itemCount) {
+            // AI 生成成功
+            scavengeLoot = aiItems.map { aiItem in
+                ExplorationLoot(
+                    id: UUID(),
+                    itemId: "ai_generated",
+                    quantity: 1,
+                    quality: nil,
+                    isAIGenerated: true,
+                    aiName: aiItem.name,
+                    aiCategory: aiItem.category,
+                    aiRarity: aiItem.rarity,
+                    aiStory: aiItem.story
+                )
+            }
+            print("🏪 [POI] ✅ AI 生成 \(scavengeLoot.count) 件物品")
+        } else {
+            // AI 生成失败，使用备用方案
+            print("🏪 [POI] ⚠️ AI 生成失败，使用备用方案")
+            scavengeLoot = generateScavengeLoot(for: poi)
+            print("🏪 [POI] 备用方案生成 \(scavengeLoot.count) 件物品")
+        }
 
         // 保存物品到背包
         if !scavengeLoot.isEmpty {
