@@ -702,7 +702,7 @@ class ExplorationManager: ObservableObject {
     /// 加载附近 POI（开始探索时调用）
     func loadNearbyPOIs() async {
         // ========== 🧪 测试开关：改为 false 恢复真实搜索 ==========
-        let useTestPOI = false
+        let useTestPOI = true
         // ===========================================================
 
         // 等待获取用户位置（最多等待 3 秒）
@@ -728,7 +728,7 @@ class ExplorationManager: ObservableObject {
 
         // ========== 🧪 测试代码开始 ==========
         if useTestPOI {
-            print("🧪 [测试] 使用测试 POI（南偏约 30 米）")
+            print("🧪 [测试] 使用测试 POI（南边约 20 米）")
 
             // ⚠️ 重要：用户位置在中国实际上是 GCJ-02
             // 真实 POI 存储的是 WGS-84，所以我们需要：
@@ -737,26 +737,26 @@ class ExplorationManager: ObservableObject {
             // 这样在 checkPOIProximity 中转换回 GCJ-02 时才正确
             let userWGS84 = CoordinateConverter.gcj02ToWgs84(validCenter)
 
-            // 创建一个测试 POI，在用户南边约 30 米处
+            // 创建一个测试 POI，在用户南边约 20 米处
             let testPOI = POI(
                 id: UUID(),
-                name: "🧪测试废墟-便利店",
-                type: .supermarket,
+                name: "🧪AI测试-废弃药店",
+                type: .pharmacy,
                 coordinate: CLLocationCoordinate2D(
-                    latitude: userWGS84.latitude - 0.0003,  // 南偏约 33 米
+                    latitude: userWGS84.latitude - 0.00018,  // 南偏约 20 米
                     longitude: userWGS84.longitude
                 ),
                 discoveryStatus: .discovered,
                 resourceStatus: .unknown,
-                dangerLevel: 2,
-                description: "测试用 POI - 往南走约 30 米触发"
+                dangerLevel: 3,  // 中危险
+                description: "测试 AI 物品生成 - 往南走约 20 米触发"
             )
 
             nearbyPOIs = [testPOI]
             print("🧪 [测试] 用户位置 GCJ-02: \(validCenter.latitude), \(validCenter.longitude)")
             print("🧪 [测试] 用户位置 WGS-84: \(userWGS84.latitude), \(userWGS84.longitude)")
             print("🧪 [测试] 测试 POI (WGS-84): \(testPOI.coordinate.latitude), \(testPOI.coordinate.longitude)")
-            print("🧪 [测试] 请往南走约 30 米，进入 50 米范围内触发弹窗")
+            print("🧪 [测试] 请往南走约 20 米，进入 50 米范围内触发弹窗")
 
             // 立即检测一次
             if let userCoord = locationManager.userLocation {

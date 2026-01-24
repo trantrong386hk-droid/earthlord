@@ -18,8 +18,13 @@ struct BackpackView: View {
     /// 当前选中的筛选分类（nil 表示全部）
     @State private var selectedCategory: ItemCategory? = nil
 
+    /// 背包管理器（使用 ObservedObject 引用单例）
+    @ObservedObject private var inventoryManager = InventoryManager.shared
+
     /// 背包物品列表
-    @State private var items: [BackpackItem] = MockBackpackData.items
+    private var items: [BackpackItem] {
+        inventoryManager.items
+    }
 
     // MARK: - 常量
 
@@ -40,17 +45,30 @@ struct BackpackView: View {
 
     /// 根据搜索和筛选条件过滤后的物品列表
     private var filteredItems: [BackpackItem] {
+        // 🔍 调试：检查 AI 物品的 aiName 是否正确
+        let aiItems = items.filter { $0.isAIGenerated }
+        let aiItemsWithName = aiItems.filter { $0.aiName != nil && !$0.aiName!.isEmpty }
+        print("📋 [filteredItems] 总共 \(items.count) 个物品，AI物品 \(aiItems.count) 个，有名称的 \(aiItemsWithName.count) 个")
+
+        // ⚠️ 警告：如果有 AI 物品但没有名称，打印警告
+        if aiItems.count > 0 && aiItemsWithName.count == 0 {
+            print("⚠️ [filteredItems] 警告：所有 AI 物品的 aiName 都是 nil！")
+            for (index, item) in aiItems.prefix(3).enumerated() {
+                print("⚠️ [filteredItems] AI物品[\(index)] - id: \(item.id), aiName: \(item.aiName ?? "nil")")
+            }
+        }
+
         var result = items
 
         // 按分类筛选
         if let category = selectedCategory {
-            result = result.filter { $0.definition?.category == category }
+            result = result.filter { $0.displayCategory == category }
         }
 
         // 按搜索文本筛选
         if !searchText.isEmpty {
             result = result.filter { item in
-                item.definition?.name.localizedCaseInsensitiveContains(searchText) ?? false
+                item.displayName.localizedCaseInsensitiveContains(searchText)
             }
         }
 
@@ -87,6 +105,9 @@ struct BackpackView: View {
         }
         .navigationTitle("背包")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await inventoryManager.loadInventory()
+        }
     }
 
     // MARK: - 容量状态卡
@@ -354,32 +375,48 @@ private struct BackpackItemRow: View {
 
     /// 分类图标
     private var categoryIcon: String {
-        definition?.category.iconName ?? "questionmark.circle"
+        if item.isAIGenerated {
+            return aiCategoryIcon(item.aiCategory ?? "杂项")
+        }
+        return definition?.category.iconName ?? "questionmark.circle"
     }
 
     /// 分类颜色
     private var categoryColor: Color {
-        switch definition?.category {
-        case .water: return .cyan
-        case .food: return .orange
-        case .medical: return .red
-        case .material: return .brown
-        case .tool: return .gray
-        case .weapon: return .purple
-        case .misc: return .gray
-        case .none: return .gray
+        if let displayCategory = item.displayCategory {
+            switch displayCategory {
+            case .water: return .cyan
+            case .food: return .orange
+            case .medical: return .red
+            case .material: return .brown
+            case .tool: return .gray
+            case .weapon: return .purple
+            case .misc: return .gray
+            }
         }
+        return .gray
     }
 
     /// 稀有度颜色
     private var rarityColor: Color {
-        switch definition?.rarity {
+        switch item.displayRarity {
         case .common: return .gray
         case .uncommon: return .green
         case .rare: return .blue
         case .epic: return .purple
         case .legendary: return .orange
-        case .none: return .gray
+        }
+    }
+
+    /// AI 分类图标映射
+    private func aiCategoryIcon(_ category: String) -> String {
+        switch category {
+        case "医疗": return "cross.case.fill"
+        case "食物": return "fork.knife"
+        case "工具": return "wrench.and.screwdriver.fill"
+        case "武器": return "bolt.fill"
+        case "材料": return "cube.fill"
+        default: return "shippingbox.fill"
         }
     }
 
@@ -396,16 +433,16 @@ private struct BackpackItemRow: View {
 
                 // 中间：物品信息
                 VStack(alignment: .leading, spacing: 6) {
-                    // 第一行：名称 + 稀有度标签
+                    // 第一行：名称 + 稀有度标签 + AI标签
                     HStack(spacing: 8) {
-                        Text(definition?.name ?? "未知物品")
+                        Text(item.displayName)
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(ApocalypseTheme.textPrimary)
 
                         // 稀有度标签
-                        if let rarity = definition?.rarity, rarity != .common {
-                            Text(rarity.displayName)
+                        if item.displayRarity != .common {
+                            Text(item.displayRarity.displayName)
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
@@ -413,6 +450,17 @@ private struct BackpackItemRow: View {
                                 .background(
                                     Capsule().fill(rarityColor)
                                 )
+                        }
+
+                        // AI标签
+                        if item.isAIGenerated {
+                            Text("AI")
+                                .font(.caption2.bold())
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(ApocalypseTheme.primary)
+                                .cornerRadius(4)
                         }
                     }
 
@@ -446,6 +494,15 @@ private struct BackpackItemRow: View {
                             }
                             .foregroundColor(qualityColor(quality))
                         }
+                    }
+
+                    // AI 故事（如果有）
+                    if let story = item.aiStory, !story.isEmpty {
+                        Text(story)
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.textSecondary)
+                            .padding(.top, 4)
+                            .lineLimit(2)
                     }
                 }
 

@@ -46,7 +46,7 @@ class POISearchManager {
     // MARK: - 搜索配置
 
     /// 搜索半径列表（逐步扩大）
-    private let radiusOptions: [Double] = [1000, 2000, 3000, 5000]  // 1km, 2km, 3km, 5km
+    private let radiusOptions: [Double] = [1000]  // 仅 1km
 
     /// 每种类型最多返回的结果数
     private let maxResultsPerCategory: Int = 5
@@ -95,7 +95,7 @@ class POISearchManager {
         print("🔍 [POI搜索] ⚠️ MKLocalPointsOfInterestRequest 无结果，尝试关键词搜索")
 
         // 策略2：使用 MKLocalSearch 关键词搜索（中国支持更好）
-        for searchRadius in [2000.0, 5000.0] {
+        for searchRadius in [1000.0] {
             print("🔍 [POI搜索] 尝试 MKLocalSearch 关键词搜索，半径: \(Int(searchRadius))m")
             let pois = await searchWithKeywords(center: center, radius: searchRadius)
             if !pois.isEmpty {

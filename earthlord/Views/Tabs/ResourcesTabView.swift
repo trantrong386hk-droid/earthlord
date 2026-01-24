@@ -70,21 +70,42 @@ struct ResourcesTabView: View {
     // MARK: - 分段选择器
 
     private var segmentPicker: some View {
-        Picker("资源分段", selection: $selectedSegment) {
+        HStack(spacing: 0) {
             ForEach(ResourceSegment.allCases, id: \.self) { segment in
-                Text(segment.title)
-                    .tag(segment)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedSegment = segment
+                    }
+                } label: {
+                    Text(segment.title)
+                        .font(.subheadline)
+                        .fontWeight(selectedSegment == segment ? .semibold : .regular)
+                        .foregroundColor(selectedSegment == segment ? .white : ApocalypseTheme.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            selectedSegment == segment
+                                ? ApocalypseTheme.primary
+                                : Color.clear
+                        )
+                }
+                .buttonStyle(.plain)
             }
         }
-        .pickerStyle(.segmented)
+        .background(ApocalypseTheme.cardBackground)
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(ApocalypseTheme.textMuted.opacity(0.3), lineWidth: 1)
+        )
     }
 
     // MARK: - 交易开关
 
     private var tradingToggle: some View {
-        HStack(spacing: 6) {
-            Image(systemName: isTradingEnabled ? "arrow.left.arrow.right.circle.fill" : "arrow.left.arrow.right.circle")
-                .font(.body)
+        HStack(spacing: 8) {
+            Text("交易")
+                .font(.caption)
                 .foregroundColor(isTradingEnabled ? ApocalypseTheme.success : ApocalypseTheme.textMuted)
 
             Toggle("", isOn: $isTradingEnabled)
@@ -92,6 +113,10 @@ struct ResourcesTabView: View {
                 .labelsHidden()
                 .scaleEffect(0.8)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(ApocalypseTheme.cardBackground.opacity(0.8))
+        .cornerRadius(8)
     }
 
     // MARK: - 内容区域
@@ -414,8 +439,8 @@ private struct POIContentView: View {
 // MARK: - 背包内容视图（去掉导航标题）
 
 private struct BackpackContentView: View {
-    /// 背包管理器
-    @StateObject private var inventoryManager = InventoryManager.shared
+    /// 背包管理器（使用 ObservedObject 引用单例）
+    @ObservedObject private var inventoryManager = InventoryManager.shared
 
     @State private var searchText: String = ""
     @State private var selectedCategory: ItemCategory? = nil
@@ -431,10 +456,12 @@ private struct BackpackContentView: View {
         inventoryManager.items
     }
 
-    private let maxCapacity: Double = 30.0  // 与 InventoryManager 一致
+    /// 背包最大容量（物品数量）
+    private let maxCapacity: Double = 100.0
 
+    /// 当前物品数量
     private var currentCapacity: Double {
-        inventoryManager.totalWeight
+        Double(items.count)
     }
 
     private var capacityPercentage: Double {
@@ -444,13 +471,15 @@ private struct BackpackContentView: View {
     private var filteredItems: [BackpackItem] {
         var result = items
 
+        // 使用 displayCategory 支持 AI 物品
         if let category = selectedCategory {
-            result = result.filter { $0.definition?.category == category }
+            result = result.filter { $0.displayCategory == category }
         }
 
+        // 使用 displayName 支持 AI 物品
         if !searchText.isEmpty {
             result = result.filter { item in
-                item.definition?.name.localizedCaseInsensitiveContains(searchText) ?? false
+                item.displayName.localizedCaseInsensitiveContains(searchText)
             }
         }
 
@@ -811,23 +840,58 @@ private struct BackpackItemCard: View {
     let item: BackpackItem
     var onUse: ((BackpackItem) -> Void)? = nil
 
-    private var definition: ItemDefinition? { item.definition }
-
+    /// 分类颜色（支持 AI 物品）
     private var categoryColor: Color {
-        switch definition?.category {
-        case .water: return .cyan
-        case .food: return .orange
-        case .medical: return .red
-        case .material: return .brown
-        case .tool: return .gray
-        default: return .gray
+        if let category = item.displayCategory {
+            switch category {
+            case .water: return .cyan
+            case .food: return .orange
+            case .medical: return .red
+            case .material: return .brown
+            case .tool: return .gray
+            case .weapon: return .purple
+            case .misc: return .gray
+            }
+        }
+        return .gray
+    }
+
+    /// 分类图标（支持 AI 物品）
+    private var categoryIcon: String {
+        if item.isAIGenerated {
+            return aiCategoryIcon(item.aiCategory ?? "杂项")
+        }
+        return item.definition?.category.iconName ?? "questionmark.circle"
+    }
+
+    /// AI 分类图标映射
+    private func aiCategoryIcon(_ category: String) -> String {
+        switch category {
+        case "医疗": return "cross.case.fill"
+        case "食物": return "fork.knife"
+        case "工具": return "wrench.and.screwdriver.fill"
+        case "武器": return "bolt.fill"
+        case "材料": return "cube.fill"
+        default: return "shippingbox.fill"
+        }
+    }
+
+    /// 稀有度颜色
+    private var rarityColor: Color {
+        switch item.displayRarity {
+        case .common: return .gray
+        case .uncommon: return .green
+        case .rare: return .blue
+        case .epic: return .purple
+        case .legendary: return .orange
         }
     }
 
     var body: some View {
         ApocalypseCard(padding: 12) {
             HStack(spacing: 12) {
-                Image(systemName: definition?.category.iconName ?? "questionmark.circle")
+                // 物品图标
+                Image(systemName: categoryIcon)
                     .font(.title3)
                     .foregroundColor(categoryColor)
                     .frame(width: 40, height: 40)
@@ -835,11 +899,36 @@ private struct BackpackItemCard: View {
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(definition?.name ?? "未知物品")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(ApocalypseTheme.textPrimary)
+                    // 物品名称 + 标签
+                    HStack(spacing: 6) {
+                        Text(item.displayName)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(ApocalypseTheme.textPrimary)
 
+                        // 稀有度标签（非普通时显示）
+                        if item.displayRarity != .common {
+                            Text(item.displayRarity.displayName)
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(rarityColor))
+                        }
+
+                        // AI 标签
+                        if item.isAIGenerated {
+                            Text("AI")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(ApocalypseTheme.primary)
+                                .cornerRadius(4)
+                        }
+                    }
+
+                    // 数量和重量
                     HStack(spacing: 8) {
                         Text("x\(item.quantity)")
                             .font(.caption)
@@ -848,6 +937,15 @@ private struct BackpackItemCard: View {
                         Text(String(format: "%.1fkg", item.totalWeight))
                             .font(.caption)
                             .foregroundColor(ApocalypseTheme.textMuted)
+                    }
+
+                    // AI 故事（如果有）
+                    if let story = item.aiStory, !story.isEmpty {
+                        Text(story)
+                            .font(.caption2)
+                            .foregroundColor(ApocalypseTheme.textMuted)
+                            .lineLimit(2)
+                            .padding(.top, 2)
                     }
                 }
 

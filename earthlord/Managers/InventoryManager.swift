@@ -76,6 +76,12 @@ class InventoryManager: ObservableObject {
 
     /// 加载用户背包
     func loadInventory() async {
+        // 如果已经在加载中，跳过
+        guard !isLoading else {
+            print("🎒 [背包] 已在加载中，跳过")
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 
@@ -91,17 +97,33 @@ class InventoryManager: ObservableObject {
 
             let response: [DBUserItem] = try await supabase
                 .from("user_items")
-                .select()
+                .select("id, user_id, item_id, quantity, acquired_at, acquired_from, is_ai_generated, ai_name, ai_category, ai_rarity, ai_story")
                 .eq("user_id", value: userId.uuidString)
                 .order("acquired_at", ascending: false)
                 .execute()
                 .value
 
+            print("🎒 [背包] 从数据库加载了 \(response.count) 条记录")
+
             // 转换为 BackpackItem
-            items = response.compactMap { dbItem -> BackpackItem? in
-                // 查找数据库物品定义
+            let newItems = response.compactMap { dbItem -> BackpackItem? in
+                // AI 生成物品
+                if dbItem.isAIGenerated == true {
+                    return BackpackItem(
+                        id: dbItem.id,
+                        definitionId: "ai_generated",
+                        quantity: dbItem.quantity,
+                        quality: nil,
+                        isAIGenerated: true,
+                        aiName: dbItem.aiName,
+                        aiCategory: dbItem.aiCategory,
+                        aiRarity: dbItem.aiRarity,
+                        aiStory: dbItem.aiStory
+                    )
+                }
+
+                // 普通物品：查找数据库物品定义
                 guard let dbDef = itemDefinitionsCache[dbItem.itemId] else {
-                    print("🎒 [背包] 未找到物品定义: \(dbItem.itemId)")
                     return nil
                 }
 
@@ -112,15 +134,27 @@ class InventoryManager: ObservableObject {
                     id: dbItem.id,
                     definitionId: localDefId,
                     quantity: dbItem.quantity,
-                    quality: nil  // 数据库暂不支持品质
+                    quality: nil,  // 数据库暂不支持品质
+                    isAIGenerated: false,
+                    aiName: nil,
+                    aiCategory: nil,
+                    aiRarity: nil,
+                    aiStory: nil
                 )
             }
 
-            print("🎒 [背包] 加载完成，共 \(items.count) 种物品")
+            // 更新 items
+            items = newItems
+            print("🎒 [背包] ✅ 加载完成，共 \(items.count) 种物品")
+
+            // 验证第一个 AI 物品
+            if let firstAI = items.first(where: { $0.isAIGenerated }) {
+                print("🎒 [背包] 🔍 验证首个AI物品: aiName=\(firstAI.aiName ?? "nil")")
+            }
 
         } catch {
             errorMessage = error.localizedDescription
-            print("🎒 [背包] 加载失败: \(error)")
+            print("🎒 [背包] ❌ 加载失败: \(error)")
         }
 
         isLoading = false
@@ -157,35 +191,62 @@ class InventoryManager: ObservableObject {
 
         // 2. 处理每个新物品
         for item in loot {
-            // 根据本地 itemId 查找数据库物品 UUID
-            guard let dbItemId = findDBItemId(localId: item.itemId) else {
-                print("🎒 [背包] 未找到数据库物品: \(item.itemId)")
-                continue
-            }
-
-            if let existing = existingMap[dbItemId] {
-                // 物品已存在，更新数量
-                let newQuantity = existing.quantity + item.quantity
-                let updateData = DBUserItemUpdate(quantity: newQuantity)
-                try await supabase
-                    .from("user_items")
-                    .update(updateData)
-                    .eq("id", value: existing.id.uuidString)
-                    .execute()
-                print("🎒 [背包] 更新物品数量: +\(item.quantity) -> \(newQuantity)")
-            } else {
-                // 物品不存在，插入新记录
+            // 🆕 检查是否为 AI 生成物品
+            if item.isAIGenerated {
+                // AI 物品：每个都是独特的，不能叠加，使用占位符 UUID
+                let placeholderUUID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
                 let upload = DBUserItemUpload(
                     userId: userId,
-                    itemId: dbItemId,
+                    itemId: placeholderUUID,
                     quantity: item.quantity,
-                    acquiredFrom: sourceType
+                    acquiredFrom: sourceType,
+                    isAIGenerated: true,
+                    aiName: item.aiName,
+                    aiCategory: item.aiCategory,
+                    aiRarity: item.aiRarity,
+                    aiStory: item.aiStory
                 )
                 try await supabase
                     .from("user_items")
                     .insert(upload)
                     .execute()
-                print("🎒 [背包] 插入新物品: \(item.itemId) x\(item.quantity)")
+                print("🎒 [背包] 插入 AI 物品: \(item.aiName ?? "未知") x\(item.quantity)")
+            } else {
+                // 普通物品：按原逻辑处理
+                guard let dbItemId = findDBItemId(localId: item.itemId) else {
+                    print("🎒 [背包] 未找到数据库物品: \(item.itemId)")
+                    continue
+                }
+
+                if let existing = existingMap[dbItemId] {
+                    // 物品已存在，更新数量
+                    let newQuantity = existing.quantity + item.quantity
+                    let updateData = DBUserItemUpdate(quantity: newQuantity)
+                    try await supabase
+                        .from("user_items")
+                        .update(updateData)
+                        .eq("id", value: existing.id.uuidString)
+                        .execute()
+                    print("🎒 [背包] 更新物品数量: +\(item.quantity) -> \(newQuantity)")
+                } else {
+                    // 物品不存在，插入新记录
+                    let upload = DBUserItemUpload(
+                        userId: userId,
+                        itemId: dbItemId,
+                        quantity: item.quantity,
+                        acquiredFrom: sourceType,
+                        isAIGenerated: false,
+                        aiName: nil,
+                        aiCategory: nil,
+                        aiRarity: nil,
+                        aiStory: nil
+                    )
+                    try await supabase
+                        .from("user_items")
+                        .insert(upload)
+                        .execute()
+                    print("🎒 [背包] 插入新物品: \(item.itemId) x\(item.quantity)")
+                }
             }
         }
 
@@ -328,13 +389,24 @@ struct DBUserItem: Codable {
     let acquiredAt: Date?
     let acquiredFrom: String?
 
+    // AI 生成物品字段
+    let isAIGenerated: Bool?
+    let aiName: String?
+    let aiCategory: String?
+    let aiRarity: String?
+    let aiStory: String?
+
     enum CodingKeys: String, CodingKey {
-        case id
+        case id, quantity
         case userId = "user_id"
         case itemId = "item_id"
-        case quantity
         case acquiredAt = "acquired_at"
         case acquiredFrom = "acquired_from"
+        case isAIGenerated = "is_ai_generated"
+        case aiName = "ai_name"
+        case aiCategory = "ai_category"
+        case aiRarity = "ai_rarity"
+        case aiStory = "ai_story"
     }
 }
 
@@ -345,11 +417,23 @@ struct DBUserItemUpload: Codable {
     let quantity: Int
     let acquiredFrom: String?
 
+    // AI 生成物品字段
+    let isAIGenerated: Bool?
+    let aiName: String?
+    let aiCategory: String?
+    let aiRarity: String?
+    let aiStory: String?
+
     enum CodingKeys: String, CodingKey {
+        case quantity
         case userId = "user_id"
         case itemId = "item_id"
-        case quantity
         case acquiredFrom = "acquired_from"
+        case isAIGenerated = "is_ai_generated"
+        case aiName = "ai_name"
+        case aiCategory = "ai_category"
+        case aiRarity = "ai_rarity"
+        case aiStory = "ai_story"
     }
 }
 

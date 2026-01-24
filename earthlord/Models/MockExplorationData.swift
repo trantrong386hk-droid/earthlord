@@ -326,21 +326,122 @@ struct BackpackItem: Identifiable, Codable {
     var quantity: Int              // 数量
     var quality: ItemQuality?      // 品质（可选，非消耗品无品质）
 
-    /// 获取物品定义
+    // MARK: - AI 生成字段（添加默认值防止 Codable 丢失）
+
+    var isAIGenerated: Bool = false
+    var aiName: String? = nil
+    var aiCategory: String? = nil
+    var aiRarity: String? = nil
+    var aiStory: String? = nil
+
+    // MARK: - CodingKeys（确保 Codable 正确编解码）
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case definitionId
+        case quantity
+        case quality
+        case isAIGenerated
+        case aiName
+        case aiCategory
+        case aiRarity
+        case aiStory
+    }
+
+    // MARK: - 自定义 Codable 初始化器（防止解码时丢失 AI 字段）
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        definitionId = try container.decode(String.self, forKey: .definitionId)
+        quantity = try container.decode(Int.self, forKey: .quantity)
+        quality = try container.decodeIfPresent(ItemQuality.self, forKey: .quality)
+        isAIGenerated = try container.decodeIfPresent(Bool.self, forKey: .isAIGenerated) ?? false
+        aiName = try container.decodeIfPresent(String.self, forKey: .aiName)
+        aiCategory = try container.decodeIfPresent(String.self, forKey: .aiCategory)
+        aiRarity = try container.decodeIfPresent(String.self, forKey: .aiRarity)
+        aiStory = try container.decodeIfPresent(String.self, forKey: .aiStory)
+    }
+
+    // MARK: - 显式初始化器（确保参数正确赋值）
+
+    init(id: UUID, definitionId: String, quantity: Int, quality: ItemQuality?,
+         isAIGenerated: Bool = false, aiName: String? = nil, aiCategory: String? = nil,
+         aiRarity: String? = nil, aiStory: String? = nil) {
+        self.id = id
+        self.definitionId = definitionId
+        self.quantity = quantity
+        self.quality = quality
+        self.isAIGenerated = isAIGenerated
+        self.aiName = aiName
+        self.aiCategory = aiCategory
+        self.aiRarity = aiRarity
+        self.aiStory = aiStory
+    }
+
+    // MARK: - 计算属性
+
+    /// 获取物品定义（仅对非 AI 物品有效）
     var definition: ItemDefinition? {
         MockItemDefinitions.find(by: definitionId)
     }
 
+    /// 显示名称（优先使用 AI 名称）
+    var displayName: String {
+        if let aiName = aiName, !aiName.isEmpty {
+            return aiName
+        }
+        return definition?.name ?? "未知物品"
+    }
+
+    /// 显示稀有度（优先使用 AI 稀有度）
+    var displayRarity: ItemRarity {
+        if let aiRarity = aiRarity {
+            return ItemRarity(rawValue: aiRarity) ?? .common
+        }
+        return definition?.rarity ?? .common
+    }
+
+    /// 显示分类
+    var displayCategory: ItemCategory? {
+        if let aiCategory = aiCategory {
+            return aiCategoryToItemCategory(aiCategory)
+        }
+        return definition?.category
+    }
+
     /// 总重量（单位重量 × 数量）
     var totalWeight: Double {
+        // AI 物品使用默认重量
+        if isAIGenerated {
+            return 0.5 * Double(quantity)
+        }
         guard let def = definition else { return 0 }
         return def.weight * Double(quantity)
     }
 
     /// 总体积（单位体积 × 数量）
     var totalVolume: Double {
+        // AI 物品使用默认体积
+        if isAIGenerated {
+            return 0.3 * Double(quantity)
+        }
         guard let def = definition else { return 0 }
         return def.volume * Double(quantity)
+    }
+
+    // MARK: - 私有方法
+
+    /// AI 分类字符串转 ItemCategory
+    private func aiCategoryToItemCategory(_ aiCat: String) -> ItemCategory? {
+        switch aiCat {
+        case "医疗": return .medical
+        case "食物": return .food
+        case "工具": return .tool
+        case "武器": return .weapon
+        case "材料": return .material
+        default: return .misc
+        }
     }
 }
 
