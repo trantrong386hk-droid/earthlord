@@ -4,6 +4,7 @@ import Supabase
 struct ProfileTabView: View {
     // MARK: - 属性
     @ObservedObject private var authManager = AuthManager.shared
+    @ObservedObject private var languageManager = LanguageManager.shared
 
     /// 是否显示退出确认弹窗
     @State private var showLogoutAlert: Bool = false
@@ -11,8 +12,8 @@ struct ProfileTabView: View {
     /// 是否正在退出
     @State private var isLoggingOut: Bool = false
 
-    /// 是否显示设置页面
-    @State private var showSettings: Bool = false
+    /// 是否显示语言选择弹窗
+    @State private var showLanguagePicker: Bool = false
 
     /// 是否显示删除账户确认弹窗
     @State private var showDeleteConfirmation: Bool = false
@@ -22,6 +23,9 @@ struct ProfileTabView: View {
 
     /// 删除确认输入文字
     @State private var deleteConfirmText: String = ""
+
+    /// Toast 消息
+    @State private var toastMessage: String?
 
     // MARK: - Body
     var body: some View {
@@ -62,6 +66,11 @@ struct ProfileTabView: View {
             if isDeleting {
                 loadingOverlay(message: "正在删除账户...".localized)
             }
+
+            // Toast 提示
+            if let message = toastMessage {
+                toastView(message: message)
+            }
         }
         .alert("退出登录", isPresented: $showLogoutAlert) {
             Button("取消", role: .cancel) { }
@@ -72,8 +81,14 @@ struct ProfileTabView: View {
             Text("确定要退出当前账号吗？")
         }
         .id(LanguageManager.shared.refreshID)
-        .fullScreenCover(isPresented: $showSettings) {
-            SettingsView()
+        .sheet(isPresented: $showLanguagePicker) {
+            LanguagePickerSheet(
+                languageManager: languageManager,
+                onDismiss: {
+                    showLanguagePicker = false
+                }
+            )
+            .presentationDetents([.height(280)])
         }
         .sheet(isPresented: $showDeleteConfirmation) {
             DeleteAccountSheet(
@@ -159,27 +174,26 @@ struct ProfileTabView: View {
         }
     }
 
-    // MARK: - 功能菜单
+    // MARK: - 通用设置
     private var menuSection: some View {
-        VStack(spacing: 2) {
-            MenuRow(icon: "gearshape", title: "设置".localized, showArrow: true) {
-                showSettings = true
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("通用".localized)
+                .font(.headline)
+                .foregroundColor(ApocalypseTheme.textSecondary)
+                .padding(.leading, 4)
 
-            MenuRow(icon: "bell", title: "通知".localized, showArrow: true) {
-                // TODO: 跳转通知页
-            }
+            VStack(spacing: 2) {
+                MenuRow(icon: "globe", title: "语言".localized, value: languageManager.currentLanguage.displayName, showArrow: true) {
+                    showLanguagePicker = true
+                }
 
-            MenuRow(icon: "questionmark.circle", title: "帮助与反馈".localized, showArrow: true) {
-                // TODO: 跳转帮助页
+                MenuRow(icon: "moon", title: "深色模式".localized, value: "跟随系统".localized, showArrow: true) {
+                    showToast("功能开发中...".localized)
+                }
             }
-
-            MenuRow(icon: "info.circle", title: "关于".localized, showArrow: true) {
-                // TODO: 跳转关于页
-            }
+            .background(ApocalypseTheme.cardBackground)
+            .cornerRadius(16)
         }
-        .background(ApocalypseTheme.cardBackground)
-        .cornerRadius(16)
     }
 
     // MARK: - 退出登录按钮
@@ -237,6 +251,35 @@ struct ProfileTabView: View {
         }
     }
 
+    // MARK: - Toast 视图
+    private func toastView(message: String) -> some View {
+        VStack {
+            Spacer()
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.black.opacity(0.8))
+                .cornerRadius(8)
+                .padding(.bottom, 100)
+        }
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .animation(.easeInOut, value: toastMessage)
+    }
+
+    /// 显示 Toast 提示
+    private func showToast(_ message: String) {
+        withAnimation {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            withAnimation {
+                toastMessage = nil
+            }
+        }
+    }
+
     // MARK: - 计算属性
 
     /// 显示名称
@@ -291,6 +334,7 @@ struct ProfileTabView: View {
 struct MenuRow: View {
     let icon: String
     let title: String
+    var value: String? = nil
     var showArrow: Bool = false
     let action: () -> Void
 
@@ -307,6 +351,12 @@ struct MenuRow: View {
                     .foregroundColor(ApocalypseTheme.textPrimary)
 
                 Spacer()
+
+                if let value = value {
+                    Text(verbatim: value)
+                        .font(.subheadline)
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                }
 
                 if showArrow {
                     Image(systemName: "chevron.right")

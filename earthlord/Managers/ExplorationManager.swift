@@ -702,7 +702,7 @@ class ExplorationManager: ObservableObject {
     /// 加载附近 POI（开始探索时调用）
     func loadNearbyPOIs() async {
         // ========== 🧪 测试开关：改为 false 恢复真实搜索 ==========
-        let useTestPOI = true
+        let useTestPOI = false
         // ===========================================================
 
         // 等待获取用户位置（最多等待 3 秒）

@@ -916,16 +916,6 @@ private struct BackpackItemCard: View {
                                 .background(Capsule().fill(rarityColor))
                         }
 
-                        // AI 标签
-                        if item.isAIGenerated {
-                            Text("AI")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(ApocalypseTheme.primary)
-                                .cornerRadius(4)
-                        }
                     }
 
                     // 数量和重量

@@ -153,17 +153,6 @@ struct ScavengeResultView: View {
                             .font(.caption)
                             .foregroundColor(rarityColor(item.displayRarity))
 
-                        // AI 标记
-                        if item.isAIGenerated {
-                            Text("AI")
-                                .font(.caption2.bold())
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(ApocalypseTheme.primary)
-                                .cornerRadius(4)
-                        }
-
                         // 品质（如果有）
                         if let quality = item.quality {
                             Text("• \(quality.displayName)")

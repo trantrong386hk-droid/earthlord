@@ -433,7 +433,7 @@ private struct BackpackItemRow: View {
 
                 // 中间：物品信息
                 VStack(alignment: .leading, spacing: 6) {
-                    // 第一行：名称 + 稀有度标签 + AI标签
+                    // 第一行：名称 + 稀有度标签
                     HStack(spacing: 8) {
                         Text(item.displayName)
                             .font(.subheadline)
@@ -452,16 +452,6 @@ private struct BackpackItemRow: View {
                                 )
                         }
 
-                        // AI标签
-                        if item.isAIGenerated {
-                            Text("AI")
-                                .font(.caption2.bold())
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(ApocalypseTheme.primary)
-                                .cornerRadius(4)
-                        }
                     }
 
                     // 第二行：数量、重量、品质

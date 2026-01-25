@@ -87,7 +87,7 @@ struct SplashView: View {
 
                 // 标题
                 VStack(spacing: 8) {
-                    Text("地球新主")
+                    Text("废墟圈地记")
                         .font(.system(size: 36, weight: .bold))
                         .foregroundColor(ApocalypseTheme.textPrimary)
 

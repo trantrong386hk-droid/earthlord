@@ -961,7 +961,7 @@ struct MapTabView: View {
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
             // 说明
-            Text("《地球新主》需要获取您的位置来显示您在末日世界中的坐标，帮助您探索和圈定领地。".localized)
+            Text("《废墟圈地记》需要获取您的位置来显示您在末日世界中的坐标，帮助您探索和圈定领地。".localized)
                 .font(.subheadline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
                 .multilineTextAlignment(.center)

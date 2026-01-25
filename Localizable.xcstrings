@@ -51,9 +51,6 @@
     "×%lld" : {
 
     },
-    "AI" : {
-
-    },
     "Developed by lilizhou" : {
       "localizations" : {
         "en" : {
@@ -364,12 +361,12 @@
         }
       }
     },
-    "地球新主" : {
+    "废墟圈地记" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Earth Lord"
+            "value" : "Ruin Land Grab"
           }
         }
       }

@@ -104,7 +104,7 @@ struct AuthView: View {
                 .shadow(color: ApocalypseTheme.primary.opacity(0.5), radius: 20)
 
             // 标题
-            Text("地球新主")
+            Text("废墟圈地记")
                 .font(.system(size: 36, weight: .bold))
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
@@ -179,16 +179,6 @@ struct AuthView: View {
     // MARK: - 第三方登录
     private var socialLoginSection: some View {
         VStack(spacing: 12) {
-            // Apple 登录
-            SocialLoginButton(
-                icon: "apple.logo",
-                title: "通过 Apple 登录",
-                backgroundColor: .black,
-                foregroundColor: .white
-            ) {
-                showToast("Apple 登录即将开放")
-            }
-
             // Google 登录
             SocialLoginButton(
                 icon: "g.circle.fill",
