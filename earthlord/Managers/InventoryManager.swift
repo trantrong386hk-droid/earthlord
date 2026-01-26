@@ -326,6 +326,7 @@ class InventoryManager: ObservableObject {
             "抗生素": "medicine",
             "肾上腺素": "medicine",
             "木材": "wood",
+            "石头": "stone",
             "金属板": "scrap_metal",
             "电子元件": "electronic_parts",
             "稀有矿石": "scrap_metal"
@@ -346,6 +347,7 @@ class InventoryManager: ObservableObject {
             "medicine": "抗生素",
             "first_aid_kit": "急救包",
             "wood": "木材",
+            "stone": "石头",
             "scrap_metal": "金属板",
             "electronic_parts": "电子元件",
             "flashlight": "急救包",  // 暂无对应，用急救包代替
@@ -360,6 +362,76 @@ class InventoryManager: ObservableObject {
 
         // 从缓存中查找
         return itemDefinitionsCache.values.first { $0.name == dbName }?.id
+    }
+
+    // MARK: - 测试方法
+
+    /// 添加测试用建筑材料（用于测试建造系统）
+    /// 添加木材、石头、金属板、电子元件各 100 个
+    func addTestBuildingMaterials() async throws {
+        guard let userId = try? await supabase.auth.session.user.id else {
+            throw InventoryError.notAuthenticated
+        }
+
+        // 确保物品定义已加载
+        if itemDefinitionsCache.isEmpty {
+            await loadItemDefinitions()
+        }
+
+        // 建筑材料列表
+        let materials = ["木材", "石头", "金属板", "电子元件"]
+
+        for materialName in materials {
+            // 查找数据库物品 ID
+            guard let dbItem = itemDefinitionsCache.values.first(where: { $0.name == materialName }) else {
+                print("🎒 [测试] 未找到物品: \(materialName)，跳过")
+                continue
+            }
+
+            // 检查是否已有该物品
+            let existingItems: [DBUserItem] = try await supabase
+                .from("user_items")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .eq("item_id", value: dbItem.id.uuidString)
+                .execute()
+                .value
+
+            if let existing = existingItems.first {
+                // 更新数量
+                let newQuantity = existing.quantity + 100
+                let updateData = DBUserItemUpdate(quantity: newQuantity)
+                try await supabase
+                    .from("user_items")
+                    .update(updateData)
+                    .eq("id", value: existing.id.uuidString)
+                    .execute()
+                print("🎒 [测试] 更新 \(materialName): +100 -> \(newQuantity)")
+            } else {
+                // 插入新记录
+                let upload = DBUserItemUpload(
+                    userId: userId,
+                    itemId: dbItem.id,
+                    quantity: 100,
+                    acquiredFrom: "test",
+                    isAIGenerated: false,
+                    aiName: nil,
+                    aiCategory: nil,
+                    aiRarity: nil,
+                    aiStory: nil
+                )
+                try await supabase
+                    .from("user_items")
+                    .insert(upload)
+                    .execute()
+                print("🎒 [测试] 添加 \(materialName): 100")
+            }
+        }
+
+        print("🎒 [测试] ✅ 建筑材料添加完成")
+
+        // 重新加载背包
+        await loadInventory()
     }
 }
 

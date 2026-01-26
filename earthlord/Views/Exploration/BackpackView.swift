@@ -21,6 +21,9 @@ struct BackpackView: View {
     /// 背包管理器（使用 ObservedObject 引用单例）
     @ObservedObject private var inventoryManager = InventoryManager.shared
 
+    /// 是否正在添加测试材料
+    @State private var isAddingTestMaterials = false
+
     /// 背包物品列表
     private var items: [BackpackItem] {
         inventoryManager.items
@@ -105,6 +108,30 @@ struct BackpackView: View {
         }
         .navigationTitle("背包")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    Task {
+                        isAddingTestMaterials = true
+                        do {
+                            try await inventoryManager.addTestBuildingMaterials()
+                        } catch {
+                            print("添加测试材料失败: \(error)")
+                        }
+                        isAddingTestMaterials = false
+                    }
+                } label: {
+                    if isAddingTestMaterials {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: ApocalypseTheme.primary))
+                    } else {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(ApocalypseTheme.primary)
+                    }
+                }
+                .disabled(isAddingTestMaterials)
+            }
+        }
         .task {
             await inventoryManager.loadInventory()
         }

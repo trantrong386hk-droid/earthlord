@@ -242,6 +242,18 @@ struct MockItemDefinitions {
             maxStack: 50
         ),
         ItemDefinition(
+            id: "stone",
+            name: "石头",
+            category: .material,
+            weight: 3.0,
+            volume: 1.0,
+            rarity: .common,
+            description: "坚硬的石块，建造的基础材料。",
+            hasQuality: false,
+            isStackable: true,
+            maxStack: 50
+        ),
+        ItemDefinition(
             id: "scrap_metal",
             name: "废金属",
             category: .material,

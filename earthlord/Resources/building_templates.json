@@ -1,0 +1,84 @@
+{
+  "templates": [
+    {
+      "id": "11111111-1111-1111-1111-111111111001",
+      "template_id": "campfire",
+      "name": "篝火",
+      "category": "survival",
+      "tier": 1,
+      "description": "最基础的生存设施，提供光源和温暖，可用于烹饪简单食物。",
+      "icon": "flame.fill",
+      "required_resources": {
+        "木材": 30,
+        "石头": 20
+      },
+      "build_time_seconds": 30,
+      "max_per_territory": 3,
+      "max_level": 3
+    },
+    {
+      "id": "11111111-1111-1111-1111-111111111002",
+      "template_id": "shelter",
+      "name": "庇护所",
+      "category": "survival",
+      "tier": 1,
+      "description": "简易的住所，提供基本的遮风挡雨功能，可安全存放少量物品。",
+      "icon": "house.fill",
+      "required_resources": {
+        "木材": 50,
+        "石头": 30
+      },
+      "build_time_seconds": 60,
+      "max_per_territory": 1,
+      "max_level": 5
+    },
+    {
+      "id": "11111111-1111-1111-1111-111111111003",
+      "template_id": "storage_small",
+      "name": "小仓库",
+      "category": "storage",
+      "tier": 1,
+      "description": "用于存放物资的小型仓库，可增加背包容量上限。",
+      "icon": "archivebox.fill",
+      "required_resources": {
+        "木材": 40,
+        "金属板": 20
+      },
+      "build_time_seconds": 45,
+      "max_per_territory": 2,
+      "max_level": 3
+    },
+    {
+      "id": "11111111-1111-1111-1111-111111111004",
+      "template_id": "farm_simple",
+      "name": "简易农田",
+      "category": "production",
+      "tier": 1,
+      "description": "可种植基础作物的农田，定时产出食物资源。",
+      "icon": "leaf.fill",
+      "required_resources": {
+        "木材": 20,
+        "石头": 10
+      },
+      "build_time_seconds": 40,
+      "max_per_territory": 4,
+      "max_level": 3
+    },
+    {
+      "id": "11111111-1111-1111-1111-111111111005",
+      "template_id": "solar_panel",
+      "name": "太阳能板",
+      "category": "energy",
+      "tier": 2,
+      "description": "利用太阳能发电的设备，为其他高级建筑提供能源支持。",
+      "icon": "sun.max.fill",
+      "required_resources": {
+        "金属板": 60,
+        "电子元件": 40
+      },
+      "build_time_seconds": 90,
+      "max_per_territory": 2,
+      "max_level": 3
+    }
+  ]
+}

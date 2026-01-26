@@ -28,6 +28,9 @@ struct MapTabView: View {
     /// 探索管理器
     @StateObject private var explorationManager = ExplorationManager.shared
 
+    /// 建筑管理器
+    @StateObject private var buildingManager = BuildingManager.shared
+
     /// 认证管理器
     @ObservedObject private var authManager = AuthManager.shared
 
@@ -99,9 +102,10 @@ struct MapTabView: View {
                 locationManager.startUpdatingLocation()
             }
 
-            // 加载领地
+            // 加载领地和建筑
             Task {
                 await loadTerritories()
+                await buildingManager.fetchAllPlayerBuildings()
             }
         }
         .id(languageManager.refreshID)
@@ -123,7 +127,8 @@ struct MapTabView: View {
                 territories: territories,
                 currentUserId: authManager.userId?.uuidString,
                 pois: explorationManager.nearbyPOIs,
-                scavengedPOIIds: explorationManager.scavengedPOIIds
+                scavengedPOIIds: explorationManager.scavengedPOIIds,
+                playerBuildings: buildingManager.playerBuildings
             )
             .ignoresSafeArea()
 
