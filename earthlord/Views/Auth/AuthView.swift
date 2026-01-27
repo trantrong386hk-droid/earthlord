@@ -179,6 +179,18 @@ struct AuthView: View {
     // MARK: - 第三方登录
     private var socialLoginSection: some View {
         VStack(spacing: 12) {
+            // Apple 登录
+            SocialLoginButton(
+                icon: "apple.logo",
+                title: "通过 Apple 登录",
+                backgroundColor: .black,
+                foregroundColor: .white
+            ) {
+                Task {
+                    await authManager.signInWithApple()
+                }
+            }
+
             // Google 登录
             SocialLoginButton(
                 icon: "g.circle.fill",
