@@ -162,6 +162,69 @@ struct IdleItemCommentUpload: Codable {
     }
 }
 
+// MARK: - 交换请求状态
+
+/// 交换请求状态枚举
+enum ExchangeRequestStatus: String, Codable {
+    case pending = "pending"
+    case accepted = "accepted"
+    case rejected = "rejected"
+
+    /// 显示名称
+    var displayName: String {
+        switch self {
+        case .pending: return "等待回复"
+        case .accepted: return "已接受"
+        case .rejected: return "已拒绝"
+        }
+    }
+}
+
+// MARK: - 交换请求
+
+/// 交换请求模型（对应数据库 idle_item_requests 表）
+struct ExchangeRequest: Identifiable, Codable {
+    let id: UUID
+    let itemId: UUID
+    let requesterId: UUID
+    let requesterUsername: String
+    let message: String?
+    let status: ExchangeRequestStatus
+    let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case itemId = "item_id"
+        case requesterId = "requester_id"
+        case requesterUsername = "requester_username"
+        case message, status
+        case createdAt = "created_at"
+    }
+
+    /// 格式化创建时间
+    var formattedCreatedAt: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: createdAt, relativeTo: Date())
+    }
+}
+
+/// 交换请求上传结构体
+struct ExchangeRequestUpload: Codable {
+    let itemId: UUID
+    let requesterId: UUID
+    let requesterUsername: String
+    let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case itemId = "item_id"
+        case requesterId = "requester_id"
+        case requesterUsername = "requester_username"
+        case message
+    }
+}
+
 // MARK: - 错误类型
 
 /// 闲置物品错误
@@ -176,6 +239,10 @@ enum IdleItemError: Error, LocalizedError {
     case serverError(String)
     case commentTooLong
     case commentEmpty
+    case requestAlreadySent
+    case requestMessageTooLong
+    case cannotRequestOwnItem
+    case itemNotActive
 
     var errorDescription: String? {
         switch self {
@@ -199,6 +266,14 @@ enum IdleItemError: Error, LocalizedError {
             return "评论不能超过300字"
         case .commentEmpty:
             return "请输入评论内容"
+        case .requestAlreadySent:
+            return "您已发送过交换请求"
+        case .requestMessageTooLong:
+            return "附言不能超过200字"
+        case .cannotRequestOwnItem:
+            return "不能对自己的物品发起交换请求"
+        case .itemNotActive:
+            return "该物品已下架或已交换"
         }
     }
 }

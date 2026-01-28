@@ -31,8 +31,14 @@ struct ResourcesTabView: View {
 
     // MARK: - 状态
 
+    /// 主 Tab 选中状态（用于检测 tab 切换）
+    @Binding var selectedTab: Int
+
     /// 当前选中的分段
     @State private var selectedSegment: ResourceSegment = .poi
+
+    /// 导航路径（显式管理，防止状态残留）
+    @State private var navigationPath = NavigationPath()
 
     /// 交易开关状态（假数据）
     @State private var isTradingEnabled: Bool = false
@@ -40,7 +46,7 @@ struct ResourcesTabView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ZStack {
                 // 背景
                 ApocalypseTheme.background
@@ -63,6 +69,11 @@ struct ResourcesTabView: View {
                     // 交易开关
                     tradingToggle
                 }
+            }
+        }
+        .onChange(of: selectedTab) { _, newValue in
+            if newValue != 2 {
+                navigationPath = NavigationPath()
             }
         }
     }
@@ -984,5 +995,5 @@ private struct BackpackItemCard: View {
 // MARK: - Preview
 
 #Preview {
-    ResourcesTabView()
+    ResourcesTabView(selectedTab: .constant(2))
 }

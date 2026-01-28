@@ -30,6 +30,14 @@ struct IdleItemDetailView: View {
     @State private var isPerformingAction = false
     @State private var currentUserId: UUID?
 
+    // 交换请求相关
+    @State private var showRequestSheet = false
+    @State private var requestMessage: String = ""
+    @State private var isSendingRequest = false
+    @State private var hasRequested = false
+    @State private var showAcceptConfirm = false
+    @State private var pendingAcceptRequestId: UUID?
+
     // MARK: - Body
 
     var body: some View {
@@ -50,6 +58,16 @@ struct IdleItemDetailView: View {
                             // 操作按钮（仅物主可见）
                             if isOwner && item.status == .active {
                                 ownerActions
+                            }
+
+                            // 物主：交换请求列表
+                            if isOwner && item.status == .active {
+                                exchangeRequestsSection
+                            }
+
+                            // 非物主：交换请求按钮
+                            if !isOwner && item.status == .active {
+                                exchangeRequestButton
                             }
 
                             // 评论区
@@ -88,6 +106,21 @@ struct IdleItemDetailView: View {
                 Button("取消", role: .cancel) {}
             } message: {
                 Text("删除后无法恢复，照片也将被删除")
+            }
+            .alert("确认接受交换", isPresented: $showAcceptConfirm) {
+                Button("确认接受", role: .destructive) {
+                    if let requestId = pendingAcceptRequestId {
+                        acceptRequest(requestId)
+                    }
+                }
+                Button("取消", role: .cancel) {
+                    pendingAcceptRequestId = nil
+                }
+            } message: {
+                Text("接受后物品将标记为已交换并自动下架，其他请求将被拒绝")
+            }
+            .sheet(isPresented: $showRequestSheet) {
+                exchangeRequestSheet
             }
         }
     }
@@ -315,6 +348,238 @@ struct IdleItemDetailView: View {
         }
     }
 
+    // MARK: - 交换请求按钮（非物主）
+
+    private var exchangeRequestButton: some View {
+        ApocalypseCard(padding: 16) {
+            if hasRequested {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock.fill")
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                    Text("已发送请求，等待回复")
+                        .font(.subheadline)
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+            } else {
+                Button {
+                    showRequestSheet = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text("我想交换")
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(ApocalypseTheme.primary)
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - 交换请求列表（物主）
+
+    private var exchangeRequestsSection: some View {
+        ApocalypseCard(padding: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                        .foregroundColor(ApocalypseTheme.primary)
+                    Text("交换请求")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    let pendingCount = idleManager.requests.filter { $0.status == .pending }.count
+                    if pendingCount > 0 {
+                        Text("\(pendingCount)条待处理")
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.warning)
+                    }
+                }
+
+                let pendingRequests = idleManager.requests.filter { $0.status == .pending }
+
+                if pendingRequests.isEmpty {
+                    Text("暂无交换请求")
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 16)
+                } else {
+                    ForEach(pendingRequests) { request in
+                        requestRow(request)
+
+                        if request.id != pendingRequests.last?.id {
+                            Divider()
+                                .background(ApocalypseTheme.textMuted.opacity(0.2))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func requestRow(_ request: ExchangeRequest) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "person.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+
+                Text(request.requesterUsername)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(ApocalypseTheme.textPrimary)
+
+                Spacer()
+
+                Text(request.formattedCreatedAt)
+                    .font(.caption2)
+                    .foregroundColor(ApocalypseTheme.textMuted)
+            }
+
+            if let message = request.message, !message.isEmpty {
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+                    .lineSpacing(2)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    pendingAcceptRequestId = request.id
+                    showAcceptConfirm = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark")
+                        Text("接受")
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(ApocalypseTheme.success)
+                    )
+                }
+                .disabled(isPerformingAction)
+
+                Button {
+                    rejectRequest(request.id)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark")
+                        Text("拒绝")
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(ApocalypseTheme.danger)
+                    )
+                }
+                .disabled(isPerformingAction)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - 交换请求 Sheet
+
+    private var exchangeRequestSheet: some View {
+        NavigationStack {
+            ZStack {
+                ApocalypseTheme.background
+                    .ignoresSafeArea()
+
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("想交换: \(item.title)")
+                            .font(.headline)
+                            .foregroundColor(ApocalypseTheme.textPrimary)
+
+                        Text("给物主留言（可选，最多200字）")
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.textMuted)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    TextEditor(text: $requestMessage)
+                        .font(.subheadline)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                        .scrollContentBackground(.hidden)
+                        .frame(minHeight: 100, maxHeight: 160)
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(ApocalypseTheme.cardBackground)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(ApocalypseTheme.textMuted.opacity(0.3), lineWidth: 1)
+                        )
+
+                    HStack {
+                        Spacer()
+                        Text("\(requestMessage.count)/200")
+                            .font(.caption2)
+                            .foregroundColor(requestMessage.count > 200 ? ApocalypseTheme.danger : ApocalypseTheme.textMuted)
+                    }
+
+                    Button {
+                        sendExchangeRequest()
+                    } label: {
+                        if isSendingRequest {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                        } else {
+                            Text("发送交换请求")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                        }
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(requestMessage.count > 200 ? ApocalypseTheme.textMuted : ApocalypseTheme.primary)
+                    )
+                    .disabled(isSendingRequest || requestMessage.count > 200)
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("发起交换")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") {
+                        showRequestSheet = false
+                    }
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
     // MARK: - 评论区
 
     private var commentsSection: some View {
@@ -453,6 +718,14 @@ struct IdleItemDetailView: View {
         currentUserId = await idleManager.getCurrentUserId()
         isOwner = item.ownerId == currentUserId
 
+        // 加载交换请求
+        await idleManager.loadRequests(itemId: item.id)
+
+        // 非物主：检查是否已发送请求
+        if !isOwner {
+            hasRequested = (try? await idleManager.hasUserRequested(itemId: item.id)) ?? false
+        }
+
         // 加载评论
         await idleManager.loadComments(itemId: item.id)
     }
@@ -517,6 +790,71 @@ struct IdleItemDetailView: View {
                 await MainActor.run {
                     isPerformingAction = false
                     dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isPerformingAction = false
+                    actionErrorMessage = error.localizedDescription
+                    showActionError = true
+                }
+            }
+        }
+    }
+
+    private func sendExchangeRequest() {
+        isSendingRequest = true
+        let message = requestMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        Task {
+            do {
+                try await idleManager.sendRequest(
+                    itemId: item.id,
+                    message: message.isEmpty ? nil : message
+                )
+                await MainActor.run {
+                    isSendingRequest = false
+                    hasRequested = true
+                    showRequestSheet = false
+                    requestMessage = ""
+                }
+            } catch {
+                await MainActor.run {
+                    isSendingRequest = false
+                    actionErrorMessage = error.localizedDescription
+                    showActionError = true
+                }
+            }
+        }
+    }
+
+    private func acceptRequest(_ requestId: UUID) {
+        isPerformingAction = true
+        Task {
+            do {
+                try await idleManager.acceptRequest(requestId: requestId)
+                await MainActor.run {
+                    isPerformingAction = false
+                    pendingAcceptRequestId = nil
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isPerformingAction = false
+                    pendingAcceptRequestId = nil
+                    actionErrorMessage = error.localizedDescription
+                    showActionError = true
+                }
+            }
+        }
+    }
+
+    private func rejectRequest(_ requestId: UUID) {
+        isPerformingAction = true
+        Task {
+            do {
+                try await idleManager.rejectRequest(requestId: requestId)
+                await MainActor.run {
+                    isPerformingAction = false
                 }
             } catch {
                 await MainActor.run {

@@ -218,25 +218,29 @@ private struct TradeHistoryCard: View {
                 Divider()
                     .background(ApocalypseTheme.textMuted.opacity(0.3))
 
-                // 你给出的物品
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("你给出:")
-                        .font(.caption)
-                        .foregroundColor(ApocalypseTheme.warning)
+                // 你给出的物品（仅当有物品时显示）
+                if !givenItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("你给出:")
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.warning)
 
-                    ForEach(givenItems) { item in
-                        TradeItemRow(item: item)
+                        ForEach(givenItems) { item in
+                            TradeItemRow(item: item)
+                        }
                     }
                 }
 
-                // 你获得的物品
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("你获得:")
-                        .font(.caption)
-                        .foregroundColor(ApocalypseTheme.success)
+                // 你获得的物品（仅当有物品时显示）
+                if !receivedItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("你获得:")
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.success)
 
-                    ForEach(receivedItems) { item in
-                        TradeItemRow(item: item)
+                        ForEach(receivedItems) { item in
+                            TradeItemRow(item: item)
+                        }
                     }
                 }
 

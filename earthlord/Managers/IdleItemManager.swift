@@ -30,6 +30,9 @@ class IdleItemManager: ObservableObject {
     /// 当前物品的评论
     @Published var comments: [IdleItemComment] = []
 
+    /// 当前物品的交换请求
+    @Published var requests: [ExchangeRequest] = []
+
     /// 是否正在加载
     @Published var isLoading: Bool = false
 
@@ -368,15 +371,145 @@ class IdleItemManager: ObservableObject {
         print("📦 [评论] ✅ 评论已删除")
     }
 
+    // MARK: - 交换请求操作
+
+    /// 发起交换请求
+    @discardableResult
+    func sendRequest(itemId: UUID, message: String?) async throws -> ExchangeRequest {
+        guard let userId = try? await supabase.auth.session.user.id else {
+            throw IdleItemError.notAuthenticated
+        }
+
+        // 检查附言长度
+        if let msg = message, msg.count > 200 {
+            throw IdleItemError.requestMessageTooLong
+        }
+
+        // 检查是否已发送过
+        let alreadySent = try await hasUserRequested(itemId: itemId)
+        if alreadySent {
+            throw IdleItemError.requestAlreadySent
+        }
+
+        let username = AuthManager.shared.userEmail ?? "匿名用户"
+
+        let upload = ExchangeRequestUpload(
+            itemId: itemId,
+            requesterId: userId,
+            requesterUsername: username,
+            message: message?.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        do {
+            let request: ExchangeRequest = try await supabase
+                .from("idle_item_requests")
+                .insert(upload)
+                .select()
+                .single()
+                .execute()
+                .value
+
+            requests.append(request)
+            print("📦 [交换请求] ✅ 请求发送成功: \(request.id)")
+            return request
+        } catch {
+            print("📦 [交换请求] ❌ 请求发送失败: \(error)")
+            throw IdleItemError.serverError(error.localizedDescription)
+        }
+    }
+
+    /// 加载某物品的交换请求列表
+    func loadRequests(itemId: UUID) async {
+        print("📦 [交换请求] 加载请求: \(itemId)")
+
+        do {
+            let result: [ExchangeRequest] = try await supabase
+                .from("idle_item_requests")
+                .select()
+                .eq("item_id", value: itemId.uuidString)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+
+            requests = result
+            print("📦 [交换请求] ✅ 加载了 \(result.count) 条请求")
+        } catch {
+            print("📦 [交换请求] ❌ 加载失败: \(error)")
+        }
+    }
+
+    /// 接受交换请求（调用数据库函数，原子操作）
+    func acceptRequest(requestId: UUID) async throws {
+        print("📦 [交换请求] 接受请求: \(requestId)")
+
+        do {
+            try await supabase
+                .rpc("accept_exchange_request", params: ["request_id": requestId.uuidString])
+                .execute()
+
+            // 更新本地状态
+            if let index = requests.firstIndex(where: { $0.id == requestId }) {
+                let accepted = requests[index]
+                // 把被接受的请求标记为 accepted，其他 pending 标记为 rejected
+                requests = requests.map { req in
+                    // 无法直接修改 let 属性，重新解码
+                    req // 由 loadRequests 刷新
+                }
+            }
+
+            print("📦 [交换请求] ✅ 已接受")
+        } catch {
+            print("📦 [交换请求] ❌ 接受失败: \(error)")
+            throw IdleItemError.serverError(error.localizedDescription)
+        }
+    }
+
+    /// 拒绝单个交换请求
+    func rejectRequest(requestId: UUID) async throws {
+        print("📦 [交换请求] 拒绝请求: \(requestId)")
+
+        do {
+            try await supabase
+                .from("idle_item_requests")
+                .update(["status": "rejected"])
+                .eq("id", value: requestId.uuidString)
+                .execute()
+
+            if let index = requests.firstIndex(where: { $0.id == requestId }) {
+                requests.remove(at: index)
+            }
+
+            print("📦 [交换请求] ✅ 已拒绝")
+        } catch {
+            print("📦 [交换请求] ❌ 拒绝失败: \(error)")
+            throw IdleItemError.serverError(error.localizedDescription)
+        }
+    }
+
+    /// 检查当前用户是否已对该物品发过请求
+    func hasUserRequested(itemId: UUID) async throws -> Bool {
+        guard let userId = try? await supabase.auth.session.user.id else {
+            return false
+        }
+
+        let result: [ExchangeRequest] = try await supabase
+            .from("idle_item_requests")
+            .select()
+            .eq("item_id", value: itemId.uuidString)
+            .eq("requester_id", value: userId.uuidString)
+            .execute()
+            .value
+
+        return !result.isEmpty
+    }
+
     // MARK: - 辅助方法
 
-    /// 获取当前用户 ID
+    /// 获取当前用户 ID（每次从 session 取值，避免缓存过期）
     func getCurrentUserId() async -> UUID? {
-        if let cached = currentUserId {
-            return cached
-        }
-        currentUserId = try? await supabase.auth.session.user.id
-        return currentUserId
+        let userId = try? await supabase.auth.session.user.id
+        currentUserId = userId
+        return userId
     }
 
     /// 更新本地物品状态

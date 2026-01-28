@@ -19,7 +19,7 @@ struct MainTabView: View {
                 }
                 .tag(1)
 
-            ResourcesTabView()
+            ResourcesTabView(selectedTab: $selectedTab)
                 .tabItem {
                     Image(systemName: "cube.box.fill")
                     Text("资源".localized)
