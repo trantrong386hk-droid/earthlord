@@ -175,6 +175,34 @@ class TerritoryManager: ObservableObject {
 
         print("🏴 [TerritoryManager] 删除成功")
         TerritoryLogger.shared.log("领地已删除: \(id)", type: .info)
+
+        // 发送删除通知
+        NotificationCenter.default.post(name: .territoryDeleted, object: nil, userInfo: ["territoryId": id])
+    }
+
+    /// 重命名领地
+    func renameTerritory(id: UUID, newName: String) async throws {
+        print("🏴 [TerritoryManager] 重命名领地: \(id) -> \(newName)")
+
+        try await supabase
+            .from("territories")
+            .update(["name": newName])
+            .eq("id", value: id.uuidString)
+            .execute()
+
+        // 更新本地列表
+        if let index = territories.firstIndex(where: { $0.id == id }) {
+            territories[index].name = newName
+        }
+        if let index = myTerritories.firstIndex(where: { $0.id == id }) {
+            myTerritories[index].name = newName
+        }
+
+        print("🏴 [TerritoryManager] 重命名成功")
+        TerritoryLogger.shared.log("领地重命名: \(newName)", type: .success)
+
+        // 发送更新通知
+        NotificationCenter.default.post(name: .territoryUpdated, object: nil, userInfo: ["territoryId": id])
     }
 
     // MARK: - 私有方法
@@ -477,4 +505,13 @@ enum TerritoryError: LocalizedError {
             return "加载失败: \(message)"
         }
     }
+}
+
+// MARK: - 通知名称
+
+extension Notification.Name {
+    /// 领地更新通知（重命名、修改等）
+    static let territoryUpdated = Notification.Name("territoryUpdated")
+    /// 领地删除通知
+    static let territoryDeleted = Notification.Name("territoryDeleted")
 }

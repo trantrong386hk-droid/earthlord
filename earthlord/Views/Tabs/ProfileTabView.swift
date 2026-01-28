@@ -5,6 +5,7 @@ struct ProfileTabView: View {
     // MARK: - 属性
     @ObservedObject private var authManager = AuthManager.shared
     @ObservedObject private var languageManager = LanguageManager.shared
+    @Environment(\.openURL) private var openURL
 
     /// 是否显示退出确认弹窗
     @State private var showLogoutAlert: Bool = false
@@ -189,6 +190,18 @@ struct ProfileTabView: View {
 
                 MenuRow(icon: "moon", title: "深色模式".localized, value: "跟随系统".localized, showArrow: true) {
                     showToast("功能开发中...".localized)
+                }
+
+                MenuRow(icon: "questionmark.circle.fill", title: "技术支持".localized, showArrow: true) {
+                    if let url = URL(string: "https://trantrong386hk-droid.github.io/earthlord-support/support.html") {
+                        openURL(url)
+                    }
+                }
+
+                MenuRow(icon: "hand.raised.fill", title: "隐私政策".localized, showArrow: true) {
+                    if let url = URL(string: "https://trantrong386hk-droid.github.io/earthlord-support/privacy.html") {
+                        openURL(url)
+                    }
                 }
             }
             .background(ApocalypseTheme.cardBackground)

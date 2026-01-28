@@ -37,6 +37,207 @@ class POIAnnotation: NSObject, MKAnnotation {
     }
 }
 
+// MARK: - 建筑标注类
+/// 主地图建筑标注
+class MapBuildingAnnotation: NSObject, MKAnnotation {
+    let building: PlayerBuilding
+    let template: BuildingTemplate?
+
+    var coordinate: CLLocationCoordinate2D {
+        // 数据库中已是 GCJ-02 坐标，直接使用
+        building.coordinate ?? CLLocationCoordinate2D()
+    }
+
+    var title: String? { building.buildingName }
+
+    var subtitle: String? {
+        if building.status == .constructing {
+            return "建造中 - \(building.formattedRemainingTime)"
+        } else if building.status == .upgrading {
+            return "升级中 - \(building.formattedRemainingTime)"
+        }
+        return template?.category.displayName
+    }
+
+    init(building: PlayerBuilding, template: BuildingTemplate?) {
+        self.building = building
+        self.template = template
+        super.init()
+    }
+}
+
+// MARK: - 主地图建筑标注视图
+/// 自定义建筑标注视图（带进度环、图标和等级显示）
+class MapBuildingAnnotationView: MKAnnotationView {
+
+    // MARK: - UI 组件
+
+    private let containerView = UIView()
+    private let iconImageView = UIImageView()
+    private let progressLayer = CAShapeLayer()
+    private let backgroundLayer = CAShapeLayer()
+    private let levelLabel = UILabel()
+
+    // MARK: - 属性
+
+    private var displayLink: CADisplayLink?
+    private weak var buildingAnnotation: MapBuildingAnnotation?
+
+    static let size: CGFloat = 50
+
+    // MARK: - 初始化
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        setupViews()
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+        setupViews()
+    }
+
+    // MARK: - 设置视图
+
+    private func setupViews() {
+        frame = CGRect(x: 0, y: 0, width: Self.size, height: Self.size)
+        centerOffset = CGPoint(x: 0, y: -Self.size / 2)
+        canShowCallout = true
+
+        // 容器视图
+        containerView.frame = bounds
+        containerView.backgroundColor = .clear
+        addSubview(containerView)
+
+        // 背景圆环（灰色）
+        let center = CGPoint(x: Self.size / 2, y: Self.size / 2)
+        let radius = Self.size / 2 - 4
+        let circlePath = UIBezierPath(arcCenter: center, radius: radius, startAngle: -.pi / 2, endAngle: .pi * 1.5, clockwise: true)
+
+        backgroundLayer.path = circlePath.cgPath
+        backgroundLayer.fillColor = UIColor.clear.cgColor
+        backgroundLayer.strokeColor = UIColor.systemGray4.cgColor
+        backgroundLayer.lineWidth = 4
+        containerView.layer.addSublayer(backgroundLayer)
+
+        // 进度圆环
+        progressLayer.path = circlePath.cgPath
+        progressLayer.fillColor = UIColor.clear.cgColor
+        progressLayer.strokeColor = UIColor.systemOrange.cgColor
+        progressLayer.lineWidth = 4
+        progressLayer.lineCap = .round
+        progressLayer.strokeEnd = 0
+        containerView.layer.addSublayer(progressLayer)
+
+        // 中心背景圆
+        let innerCircle = UIView(frame: CGRect(x: 6, y: 6, width: Self.size - 12, height: Self.size - 12))
+        innerCircle.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.95)
+        innerCircle.layer.cornerRadius = (Self.size - 12) / 2
+        innerCircle.layer.shadowColor = UIColor.black.cgColor
+        innerCircle.layer.shadowOffset = CGSize(width: 0, height: 2)
+        innerCircle.layer.shadowRadius = 4
+        innerCircle.layer.shadowOpacity = 0.3
+        containerView.addSubview(innerCircle)
+
+        // 图标
+        iconImageView.frame = CGRect(x: 0, y: 0, width: 24, height: 24)
+        iconImageView.center = CGPoint(x: innerCircle.bounds.width / 2, y: innerCircle.bounds.height / 2 - 2)
+        iconImageView.contentMode = .scaleAspectFit
+        iconImageView.tintColor = .systemOrange
+        innerCircle.addSubview(iconImageView)
+
+        // 等级标签
+        levelLabel.frame = CGRect(x: 0, y: innerCircle.bounds.height - 14, width: innerCircle.bounds.width, height: 12)
+        levelLabel.textAlignment = .center
+        levelLabel.font = .systemFont(ofSize: 9, weight: .bold)
+        levelLabel.textColor = .secondaryLabel
+        innerCircle.addSubview(levelLabel)
+    }
+
+    // MARK: - 配置
+
+    func configure(with annotation: MapBuildingAnnotation) {
+        self.buildingAnnotation = annotation
+        let building = annotation.building
+        let template = annotation.template
+
+        // 设置图标
+        let iconName = template?.icon ?? "building.2"
+        iconImageView.image = UIImage(systemName: iconName)
+
+        // 设置等级
+        levelLabel.text = "Lv.\(building.level)"
+
+        // 根据状态配置
+        if building.status.isInProgress {
+            // 建造中/升级中 - 显示进度环
+            backgroundLayer.isHidden = false
+            progressLayer.isHidden = false
+            let progressColor: UIColor = building.status == .upgrading ? .systemBlue : .systemOrange
+            progressLayer.strokeColor = progressColor.cgColor
+            iconImageView.tintColor = progressColor
+            updateProgress()
+            startProgressAnimation()
+        } else {
+            // 已完成 - 隐藏进度环，显示分类颜色
+            backgroundLayer.isHidden = true
+            progressLayer.isHidden = true
+            stopProgressAnimation()
+
+            let color: UIColor
+            switch template?.category {
+            case .survival:
+                color = .systemOrange
+            case .storage:
+                color = .systemBlue
+            case .production:
+                color = .systemGreen
+            case .energy:
+                color = .systemYellow
+            case .none:
+                color = .systemGray
+            }
+            iconImageView.tintColor = color
+        }
+    }
+
+    // MARK: - 进度动画
+
+    private func updateProgress() {
+        guard let building = buildingAnnotation?.building else { return }
+        let progress = building.buildProgress
+        progressLayer.strokeEnd = CGFloat(progress)
+    }
+
+    private func startProgressAnimation() {
+        stopProgressAnimation()
+        displayLink = CADisplayLink(target: self, selector: #selector(updateProgressFromDisplayLink))
+        displayLink?.add(to: .main, forMode: .common)
+    }
+
+    private func stopProgressAnimation() {
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+
+    @objc private func updateProgressFromDisplayLink() {
+        updateProgress()
+    }
+
+    // MARK: - 生命周期
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        stopProgressAnimation()
+        progressLayer.strokeEnd = 0
+        buildingAnnotation = nil
+    }
+
+    deinit {
+        stopProgressAnimation()
+    }
+}
+
 // MARK: - 地图视图包装器
 /// 将 MKMapView 包装为 SwiftUI 视图
 struct MapViewRepresentable: UIViewRepresentable {
@@ -81,6 +282,11 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     /// 已搜刮的 POI ID 集合
     var scavengedPOIIds: Set<UUID> = []
+
+    // MARK: - 建筑显示属性
+
+    /// 所有玩家建筑列表
+    var playerBuildings: [PlayerBuilding] = []
 
     // MARK: - UIViewRepresentable
 
@@ -147,6 +353,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         // 更新 POI 标记
         updatePOIAnnotations(on: mapView, context: context)
+
+        // 更新建筑标记
+        updateBuildingAnnotations(on: mapView, context: context)
     }
 
     // MARK: - 轨迹渲染
@@ -275,6 +484,50 @@ struct MapViewRepresentable: UIViewRepresentable {
         print("🏪 [POI渲染] 显示 \(pois.count) 个 POI 标记，已搜刮 \(scavengedPOIIds.count) 个")
     }
 
+    // MARK: - 建筑标记渲染
+
+    /// 更新建筑标记显示
+    private func updateBuildingAnnotations(on mapView: MKMapView, context: Context) {
+        let existingAnnotations = mapView.annotations.compactMap { $0 as? MapBuildingAnnotation }
+        let existingById = Dictionary(uniqueKeysWithValues: existingAnnotations.map { ($0.building.id, $0) })
+
+        let currentBuildingIds = Set(playerBuildings.compactMap { $0.coordinate != nil ? $0.id : nil })
+        let existingBuildingIds = Set(existingById.keys)
+
+        // 检测状态或等级变化的建筑（需要重建标注以更新进度环）
+        var statusChangedIds: Set<UUID> = []
+        for building in playerBuildings {
+            if let existing = existingById[building.id],
+               existing.building.status != building.status || existing.building.level != building.level {
+                statusChangedIds.insert(building.id)
+            }
+        }
+
+        // ID 和状态都没变化，跳过更新
+        // MapBuildingAnnotationView 内部的 CADisplayLink 会自动更新已有进度环
+        if currentBuildingIds == existingBuildingIds && statusChangedIds.isEmpty {
+            return
+        }
+
+        let buildingManager = BuildingManager.shared
+
+        // 需要移除的标注：已删除的 + 状态变化的
+        let idsToRemove = existingBuildingIds.subtracting(currentBuildingIds).union(statusChangedIds)
+        let annotationsToRemove = existingAnnotations.filter { idsToRemove.contains($0.building.id) }
+        mapView.removeAnnotations(annotationsToRemove)
+
+        // 需要添加的标注：新增的 + 状态变化的
+        let idsToAdd = currentBuildingIds.subtracting(existingBuildingIds).union(statusChangedIds)
+        for building in playerBuildings {
+            guard building.coordinate != nil, idsToAdd.contains(building.id) else { continue }
+            let template = buildingManager.getTemplate(for: building.templateId)
+            let annotation = MapBuildingAnnotation(building: building, template: template)
+            mapView.addAnnotation(annotation)
+        }
+
+        print("🏗️ [建筑渲染] 移除 \(annotationsToRemove.count) 个, 添加 \(idsToAdd.count) 个, 状态变化 \(statusChangedIds.count) 个")
+    }
+
     /// 创建 Coordinator
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -392,35 +645,52 @@ struct MapViewRepresentable: UIViewRepresentable {
             // 忽略用户位置标注
             guard !(annotation is MKUserLocation) else { return nil }
 
+            // 处理建筑标注（使用自定义视图：进度环 + 图标 + 等级）
+            if let buildingAnnotation = annotation as? MapBuildingAnnotation {
+                let identifier = "MapBuilding"
+                var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MapBuildingAnnotationView
+
+                if annotationView == nil {
+                    annotationView = MapBuildingAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                } else {
+                    annotationView?.annotation = annotation
+                }
+
+                annotationView?.configure(with: buildingAnnotation)
+                return annotationView
+            }
+
             // 处理 POI 标注
-            guard let poiAnnotation = annotation as? POIAnnotation else { return nil }
+            if let poiAnnotation = annotation as? POIAnnotation {
+                let identifier = "POIMarker"
+                var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
 
-            let identifier = "POIMarker"
-            var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
+                if annotationView == nil {
+                    annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                    annotationView?.canShowCallout = true
+                } else {
+                    annotationView?.annotation = annotation
+                }
 
-            if annotationView == nil {
-                annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
-                annotationView?.canShowCallout = true
-            } else {
-                annotationView?.annotation = annotation
+                // 设置图标
+                annotationView?.glyphImage = UIImage(systemName: poiAnnotation.poi.type.iconName)
+
+                // 始终显示标题（POI 名称）
+                annotationView?.titleVisibility = .visible
+
+                // 设置颜色（已搜刮为灰色，未搜刮使用 POI 类型颜色）
+                if poiAnnotation.isScavenged {
+                    annotationView?.markerTintColor = .systemGray
+                    annotationView?.alpha = 0.6
+                } else {
+                    annotationView?.markerTintColor = poiAnnotation.poi.type.markerColor
+                    annotationView?.alpha = 1.0
+                }
+
+                return annotationView
             }
 
-            // 设置图标
-            annotationView?.glyphImage = UIImage(systemName: poiAnnotation.poi.type.iconName)
-
-            // 始终显示标题（POI 名称）
-            annotationView?.titleVisibility = .visible
-
-            // 设置颜色（已搜刮为灰色，未搜刮使用 POI 类型颜色）
-            if poiAnnotation.isScavenged {
-                annotationView?.markerTintColor = .systemGray
-                annotationView?.alpha = 0.6
-            } else {
-                annotationView?.markerTintColor = poiAnnotation.poi.type.markerColor
-                annotationView?.alpha = 1.0
-            }
-
-            return annotationView
+            return nil
         }
 
         // MARK: - Overlay 渲染（关键！）
@@ -500,6 +770,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         territories: [],
         currentUserId: nil,
         pois: [],
-        scavengedPOIIds: []
+        scavengedPOIIds: [],
+        playerBuildings: []
     )
 }

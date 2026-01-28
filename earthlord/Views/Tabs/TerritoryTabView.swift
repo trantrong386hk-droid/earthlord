@@ -14,6 +14,7 @@ struct TerritoryTabView: View {
 
     @ObservedObject private var languageManager = LanguageManager.shared
     @StateObject private var territoryManager = TerritoryManager.shared
+    @StateObject private var buildingManager = BuildingManager.shared
 
     /// 选中的领地（用于显示详情页）
     @State private var selectedTerritory: Territory?
@@ -23,6 +24,9 @@ struct TerritoryTabView: View {
 
     /// 错误信息
     @State private var errorMessage: String?
+
+    /// 刷新触发器
+    @State private var refreshTrigger: UUID = UUID()
 
     // MARK: - 计算属性
 
@@ -82,6 +86,22 @@ struct TerritoryTabView: View {
             Task {
                 await loadMyTerritories()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .territoryUpdated)) { _ in
+            // 领地更新时刷新列表
+            Task {
+                await loadMyTerritories()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .territoryDeleted)) { _ in
+            // 领地删除时刷新列表
+            Task {
+                await loadMyTerritories()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .buildingUpdated)) { _ in
+            // 建筑更新时刷新（用于更新建筑数量显示）
+            refreshTrigger = UUID()
         }
         .id(languageManager.refreshID)
     }

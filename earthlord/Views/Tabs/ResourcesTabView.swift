@@ -149,12 +149,8 @@ struct ResourcesTabView: View {
             )
 
         case .trade:
-            // 交易（占位）
-            placeholderView(
-                icon: "arrow.left.arrow.right",
-                title: "资源交易",
-                subtitle: "功能开发中"
-            )
+            // 交易系统
+            TradeMainView()
         }
     }
 
@@ -451,6 +447,9 @@ private struct BackpackContentView: View {
     /// 动画用的容量百分比
     @State private var animatedCapacityPercentage: Double = 0
 
+    /// 是否正在添加测试材料
+    @State private var isAddingTestMaterials: Bool = false
+
     /// 背包物品列表（从 InventoryManager 获取）
     private var items: [BackpackItem] {
         inventoryManager.items
@@ -564,6 +563,31 @@ private struct BackpackContentView: View {
                         .foregroundColor(ApocalypseTheme.textPrimary)
 
                     Spacer()
+
+                    // 添加测试建筑材料按钮
+                    Button {
+                        Task {
+                            isAddingTestMaterials = true
+                            do {
+                                try await inventoryManager.addTestBuildingMaterials()
+                            } catch {
+                                print("添加测试材料失败: \(error)")
+                            }
+                            isAddingTestMaterials = false
+                        }
+                    } label: {
+                        if isAddingTestMaterials {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: ApocalypseTheme.primary))
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "hammer.fill")
+                                .font(.body)
+                                .foregroundColor(ApocalypseTheme.primary)
+                        }
+                    }
+                    .disabled(isAddingTestMaterials)
+                    .padding(.trailing, 8)
 
                     Text(String(format: "%.0f / %.0f", currentCapacity, maxCapacity))
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
