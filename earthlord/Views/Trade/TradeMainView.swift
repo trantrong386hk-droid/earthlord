@@ -14,12 +14,14 @@ enum TradeTab: Int, CaseIterable {
     case market = 0     // 交易市场
     case myOffers = 1   // 我的挂单
     case history = 2    // 交易历史
+    case idleItems = 3  // 闲置交换
 
     var title: String {
         switch self {
         case .market: return "交易市场"
         case .myOffers: return "我的挂单"
         case .history: return "交易历史"
+        case .idleItems: return "闲置交换"
         }
     }
 
@@ -28,6 +30,7 @@ enum TradeTab: Int, CaseIterable {
         case .market: return "cart.fill"
         case .myOffers: return "doc.text.fill"
         case .history: return "clock.fill"
+        case .idleItems: return "photo.on.rectangle.angled"
         }
     }
 }
@@ -134,6 +137,11 @@ struct TradeMainView: View {
 
         case .history:
             TradeHistoryView()
+                .opacity(itemsAppeared ? 1 : 0)
+                .offset(y: itemsAppeared ? 0 : 20)
+
+        case .idleItems:
+            IdleMarketView()
                 .opacity(itemsAppeared ? 1 : 0)
                 .offset(y: itemsAppeared ? 0 : 20)
         }
