@@ -115,3 +115,113 @@ enum CommunicationSection: String, CaseIterable {
         }
     }
 }
+
+// MARK: - 频道类型
+
+enum ChannelType: String, Codable, CaseIterable {
+    case official = "official"
+    case `public` = "public"
+    case walkie = "walkie"
+    case camp = "camp"
+    case satellite = "satellite"
+
+    var displayName: String {
+        switch self {
+        case .official: return "官方频道"
+        case .public: return "公开频道"
+        case .walkie: return "对讲机频道"
+        case .camp: return "营地广播"
+        case .satellite: return "卫星频道"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .official: return "megaphone.fill"
+        case .public: return "globe"
+        case .walkie: return "walkie.talkie.radio"
+        case .camp: return "antenna.radiowaves.left.and.right"
+        case .satellite: return "antenna.radiowaves.left.and.right.circle.fill"
+        }
+    }
+
+    var codePrefix: String {
+        switch self {
+        case .official: return "OFF"
+        case .public: return "PUB"
+        case .walkie: return "WLK"
+        case .camp: return "CMP"
+        case .satellite: return "SAT"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .official: return "系统官方公告频道"
+        case .public: return "所有人可见的公开频道"
+        case .walkie: return "需要对讲机设备收听"
+        case .camp: return "需要营地电台设备"
+        case .satellite: return "需要卫星通讯设备"
+        }
+    }
+
+    /// 用户可创建的频道类型（排除官方）
+    static var userCreatable: [ChannelType] {
+        [.public, .walkie, .camp, .satellite]
+    }
+}
+
+// MARK: - 频道模型
+
+struct CommunicationChannel: Codable, Identifiable {
+    let id: UUID
+    let creatorId: UUID
+    let channelType: ChannelType
+    let channelCode: String
+    let name: String
+    let description: String?
+    let isActive: Bool
+    let memberCount: Int
+    let createdAt: Date
+    let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case creatorId = "creator_id"
+        case channelType = "channel_type"
+        case channelCode = "channel_code"
+        case name
+        case description
+        case isActive = "is_active"
+        case memberCount = "member_count"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+// MARK: - 订阅模型
+
+struct ChannelSubscription: Codable, Identifiable {
+    let id: UUID
+    let userId: UUID
+    let channelId: UUID
+    let isMuted: Bool
+    let joinedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case channelId = "channel_id"
+        case isMuted = "is_muted"
+        case joinedAt = "joined_at"
+    }
+}
+
+// MARK: - 组合模型（频道 + 订阅状态）
+
+struct SubscribedChannel: Identifiable {
+    let channel: CommunicationChannel
+    let subscription: ChannelSubscription
+
+    var id: UUID { channel.id }
+}
