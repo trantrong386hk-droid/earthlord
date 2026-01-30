@@ -16,7 +16,8 @@ struct ChannelCenterView: View {
     @State private var selectedTab = 0  // 0: 我的频道, 1: 发现频道
     @State private var searchText = ""
     @State private var showCreateSheet = false
-    @State private var selectedChannel: CommunicationChannel?
+    @State private var selectedChannelForDetail: CommunicationChannel?
+    @State private var selectedChannelForChat: CommunicationChannel?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,8 +40,13 @@ struct ChannelCenterView: View {
                 showCreateSheet = false
             })
         }
-        .sheet(item: $selectedChannel) { channel in
+        .sheet(item: $selectedChannelForDetail) { channel in
             ChannelDetailView(channel: channel)
+        }
+        .fullScreenCover(item: $selectedChannelForChat) { channel in
+            NavigationStack {
+                ChannelChatView(channel: channel)
+            }
         }
         .task {
             await loadData()
@@ -141,7 +147,13 @@ struct ChannelCenterView: View {
     // MARK: - 频道行
 
     private func channelRow(_ channel: CommunicationChannel, isSubscribed: Bool) -> some View {
-        Button(action: { selectedChannel = channel }) {
+        Button(action: {
+            if isSubscribed {
+                selectedChannelForChat = channel
+            } else {
+                selectedChannelForDetail = channel
+            }
+        }) {
             HStack(spacing: 12) {
                 // 图标
                 ZStack {

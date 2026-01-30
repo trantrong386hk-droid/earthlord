@@ -173,7 +173,7 @@ enum ChannelType: String, Codable, CaseIterable {
 
 // MARK: - 频道模型
 
-struct CommunicationChannel: Codable, Identifiable {
+struct CommunicationChannel: Codable, Identifiable, Hashable {
     let id: UUID
     let creatorId: UUID
     let channelType: ChannelType
@@ -224,4 +224,178 @@ struct SubscribedChannel: Identifiable {
     let subscription: ChannelSubscription
 
     var id: UUID { channel.id }
+}
+
+// MARK: - 位置点模型
+
+struct LocationPoint: Codable {
+    let latitude: Double
+    let longitude: Double
+
+    /// 从 PostGIS POINT 格式解析位置
+    /// 格式示例: "POINT(121.4737 31.2304)" 或 "SRID=4326;POINT(121.4737 31.2304)"
+    static func fromPostGIS(_ wkt: String) -> LocationPoint? {
+        // 移除 SRID 前缀（如果存在）
+        var cleanedWkt = wkt
+        if let sridRange = wkt.range(of: "SRID=\\d+;", options: .regularExpression) {
+            cleanedWkt = String(wkt[sridRange.upperBound...])
+        }
+
+        // 匹配 POINT(lon lat) 格式
+        let pattern = "POINT\\s*\\(\\s*([\\d.-]+)\\s+([\\d.-]+)\\s*\\)"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(in: cleanedWkt, options: [], range: NSRange(cleanedWkt.startIndex..., in: cleanedWkt)),
+              match.numberOfRanges == 3 else {
+            return nil
+        }
+
+        guard let lonRange = Range(match.range(at: 1), in: cleanedWkt),
+              let latRange = Range(match.range(at: 2), in: cleanedWkt),
+              let longitude = Double(cleanedWkt[lonRange]),
+              let latitude = Double(cleanedWkt[latRange]) else {
+            return nil
+        }
+
+        return LocationPoint(latitude: latitude, longitude: longitude)
+    }
+}
+
+// MARK: - 消息元数据
+
+struct MessageMetadata: Codable {
+    let deviceType: String?
+
+    enum CodingKeys: String, CodingKey {
+        case deviceType = "device_type"
+    }
+
+    init(deviceType: String? = nil) {
+        self.deviceType = deviceType
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        deviceType = try container.decodeIfPresent(String.self, forKey: .deviceType)
+    }
+}
+
+// MARK: - 频道消息模型
+
+struct ChannelMessage: Codable, Identifiable {
+    let messageId: UUID
+    let channelId: UUID
+    let senderId: UUID?
+    let senderCallsign: String?
+    let content: String
+    private let senderLocationRaw: String?
+    let metadata: MessageMetadata?
+    let createdAt: Date
+
+    var id: UUID { messageId }
+
+    /// 解析后的发送者位置
+    var senderLocation: LocationPoint? {
+        guard let raw = senderLocationRaw else { return nil }
+        return LocationPoint.fromPostGIS(raw)
+    }
+
+    /// 设备类型
+    var deviceType: String? {
+        metadata?.deviceType
+    }
+
+    /// 显示用的时间（如 "刚刚"、"5分钟前"）
+    var timeAgo: String {
+        let now = Date()
+        let interval = now.timeIntervalSince(createdAt)
+
+        if interval < 60 {
+            return "刚刚"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)分钟前"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)小时前"
+        } else {
+            let days = Int(interval / 86400)
+            return "\(days)天前"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case messageId = "message_id"
+        case channelId = "channel_id"
+        case senderId = "sender_id"
+        case senderCallsign = "sender_callsign"
+        case content
+        case senderLocationRaw = "sender_location"
+        case metadata
+        case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        messageId = try container.decode(UUID.self, forKey: .messageId)
+        channelId = try container.decode(UUID.self, forKey: .channelId)
+        senderId = try container.decodeIfPresent(UUID.self, forKey: .senderId)
+        senderCallsign = try container.decodeIfPresent(String.self, forKey: .senderCallsign)
+        content = try container.decode(String.self, forKey: .content)
+        senderLocationRaw = try container.decodeIfPresent(String.self, forKey: .senderLocationRaw)
+        metadata = try container.decodeIfPresent(MessageMetadata.self, forKey: .metadata)
+
+        // 多格式日期解析
+        let dateString = try container.decode(String.self, forKey: .createdAt)
+        createdAt = ChannelMessage.parseDate(dateString) ?? Date()
+    }
+
+    /// 多格式日期解析
+    private static func parseDate(_ string: String) -> Date? {
+        let formatters: [DateFormatter] = {
+            let formats = [
+                "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZZZZZ",
+                "yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ",
+                "yyyy-MM-dd'T'HH:mm:ssZZZZZ",
+                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS",
+                "yyyy-MM-dd'T'HH:mm:ss"
+            ]
+            return formats.map { format in
+                let formatter = DateFormatter()
+                formatter.dateFormat = format
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                formatter.timeZone = TimeZone(secondsFromGMT: 0)
+                return formatter
+            }
+        }()
+
+        // 尝试 ISO8601DateFormatter
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = isoFormatter.date(from: string) {
+            return date
+        }
+
+        // 尝试各种格式
+        for formatter in formatters {
+            if let date = formatter.date(from: string) {
+                return date
+            }
+        }
+
+        return nil
+    }
+
+    /// 用于本地创建（发送时预览）
+    init(messageId: UUID, channelId: UUID, senderId: UUID?, senderCallsign: String?, content: String, metadata: MessageMetadata?, createdAt: Date) {
+        self.messageId = messageId
+        self.channelId = channelId
+        self.senderId = senderId
+        self.senderCallsign = senderCallsign
+        self.content = content
+        self.senderLocationRaw = nil
+        self.metadata = metadata
+        self.createdAt = createdAt
+    }
 }
