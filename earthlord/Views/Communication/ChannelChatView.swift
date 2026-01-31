@@ -8,6 +8,7 @@
 
 import SwiftUI
 import Auth
+import CoreLocation
 
 struct ChannelChatView: View {
     let channel: CommunicationChannel
@@ -241,10 +242,17 @@ struct ChannelChatView: View {
 
         let deviceType = communicationManager.getCurrentDeviceType().rawValue
 
+        // 获取真实 GPS 位置
+        let location = LocationManager.shared.userLocation
+        let latitude = location?.latitude
+        let longitude = location?.longitude
+
         Task {
             let success = await communicationManager.sendChannelMessage(
                 channelId: channel.id,
                 content: content,
+                latitude: latitude,
+                longitude: longitude,
                 deviceType: deviceType
             )
 

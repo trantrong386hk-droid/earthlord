@@ -299,9 +299,15 @@ struct ChannelMessage: Codable, Identifiable {
         return LocationPoint.fromPostGIS(raw)
     }
 
-    /// 设备类型
+    /// 设备类型字符串
     var deviceType: String? {
         metadata?.deviceType
+    }
+
+    /// 发送者设备类型（从 metadata 解析）
+    var senderDeviceType: DeviceType? {
+        guard let deviceTypeString = metadata?.deviceType else { return nil }
+        return DeviceType(rawValue: deviceTypeString)
     }
 
     /// 显示用的时间（如 "刚刚"、"5分钟前"）
