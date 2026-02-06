@@ -148,11 +148,8 @@ struct ChannelCenterView: View {
 
     private func channelRow(_ channel: CommunicationChannel, isSubscribed: Bool) -> some View {
         Button(action: {
-            if isSubscribed {
-                selectedChannelForChat = channel
-            } else {
-                selectedChannelForDetail = channel
-            }
+            // 所有频道点击都先显示详情
+            selectedChannelForDetail = channel
         }) {
             HStack(spacing: 12) {
                 // 图标

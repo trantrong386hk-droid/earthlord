@@ -20,6 +20,7 @@ struct ChannelDetailView: View {
     @State private var showDeleteConfirmation = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var showChatView = false
 
     private var isCreator: Bool {
         authManager.currentUser?.id == channel.creatorId
@@ -70,6 +71,11 @@ struct ChannelDetailView: View {
                 Button("确定", role: .cancel) {}
             } message: {
                 Text(errorMessage)
+            }
+            .fullScreenCover(isPresented: $showChatView) {
+                NavigationStack {
+                    ChannelChatView(channel: channel)
+                }
             }
         }
     }
@@ -184,6 +190,20 @@ struct ChannelDetailView: View {
     private var actionButtons: some View {
         VStack(spacing: 12) {
             if isSubscribed {
+                // 进入聊天按钮
+                Button(action: { showChatView = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "message.fill")
+                        Text("进入聊天")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(ApocalypseTheme.primary)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
+
                 // 取消订阅按钮（创建者不能取消订阅自己的频道）
                 if !isCreator {
                     Button(action: unsubscribe) {
