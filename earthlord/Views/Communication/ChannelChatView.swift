@@ -18,7 +18,7 @@ struct ChannelChatView: View {
     @ObservedObject private var authManager = AuthManager.shared
     @State private var messageText = ""
     @State private var isLoading = true
-    @State private var showChannelDetail = false
+    @State private var showMembersList = false
     @FocusState private var isInputFocused: Bool
 
     private var currentUserId: UUID? {
@@ -60,13 +60,13 @@ struct ChannelChatView: View {
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showChannelDetail = true }) {
+                Button(action: { showMembersList = true }) {
                     memberCountBadge
                 }
             }
         }
-        .sheet(isPresented: $showChannelDetail) {
-            ChannelDetailView(channel: channel)
+        .sheet(isPresented: $showMembersList) {
+            ChannelMembersView(channel: channel)
         }
         .onAppear {
             setupChat()

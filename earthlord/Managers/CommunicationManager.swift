@@ -561,6 +561,101 @@ final class CommunicationManager: ObservableObject {
         channelMessages[channelId] ?? []
     }
 
+    // MARK: - 频道成员管理
+
+    @Published private(set) var channelMembers: [UUID: [ChannelMember]] = [:] // channelId -> members
+
+    /// 加载频道成员列表
+    func loadChannelMembers(channelId: UUID, creatorId: UUID) async -> [ChannelMember] {
+        do {
+            // 查询订阅记录并联表获取用户信息
+            let response: [[String: AnyJSON]] = try await client
+                .from("channel_subscriptions")
+                .select("""
+                    id,
+                    user_id,
+                    joined_at,
+                    communication_devices!inner(device_type),
+                    profiles!inner(callsign)
+                """)
+                .eq("channel_id", value: channelId.uuidString)
+                .eq("communication_devices.is_current", value: true)
+                .order("joined_at", ascending: true)
+                .execute()
+                .value
+
+            // 解析为 ChannelMember
+            let members = response.compactMap { dict -> ChannelMember? in
+                guard let idStr = dict["id"]?.stringValue,
+                      let id = UUID(uuidString: idStr),
+                      let userIdStr = dict["user_id"]?.stringValue,
+                      let userId = UUID(uuidString: userIdStr),
+                      let joinedAtStr = dict["joined_at"]?.stringValue else {
+                    return nil
+                }
+
+                // 使用 ChannelMessage 的日期解析逻辑
+                let joinedAt = parseMessageDate(joinedAtStr) ?? Date()
+
+                let callsign = dict["profiles"]?.objectValue?["callsign"]?.stringValue
+                let deviceTypeStr = dict["communication_devices"]?.objectValue?["device_type"]?.stringValue
+                let deviceType = deviceTypeStr.flatMap { DeviceType(rawValue: $0) }
+                let isCreator = userId == creatorId
+
+                return ChannelMember(
+                    id: id,
+                    userId: userId,
+                    callsign: callsign,
+                    deviceType: deviceType,
+                    joinedAt: joinedAt,
+                    isCreator: isCreator
+                )
+            }
+
+            // 缓存结果
+            channelMembers[channelId] = members
+
+            print("📡 [频道成员] ✅ 加载了 \(members.count) 个成员")
+            return members
+        } catch {
+            errorMessage = "加载成员失败: \(error.localizedDescription)"
+            print("📡 [频道成员] ❌ 加载失败: \(error)")
+            return []
+        }
+    }
+
+    /// 解析消息日期（复用 ChannelMessage 的逻辑）
+    private func parseMessageDate(_ string: String) -> Date? {
+        // ISO8601DateFormatter
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = isoFormatter.date(from: string) {
+            return date
+        }
+
+        // 尝试多种格式
+        let formats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZZZZZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ",
+            "yyyy-MM-dd'T'HH:mm:ssZZZZZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ss"
+        ]
+
+        for format in formats {
+            let formatter = DateFormatter()
+            formatter.dateFormat = format
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            if let date = formatter.date(from: string) {
+                return date
+            }
+        }
+
+        return nil
+    }
+
     // MARK: - 距离过滤逻辑
 
     /// 判断是否应该接收该消息（基于设备类型和距离）

@@ -405,3 +405,40 @@ struct ChannelMessage: Codable, Identifiable {
         self.createdAt = createdAt
     }
 }
+
+// MARK: - 频道成员模型
+
+struct ChannelMember: Identifiable, Codable {
+    let id: UUID                  // subscription.id
+    let userId: UUID              // 用户ID
+    let callsign: String?         // 呼号
+    let deviceType: DeviceType?   // 当前设备类型
+    let joinedAt: Date            // 加入时间
+    let isCreator: Bool           // 是否是频道创建者
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case callsign
+        case deviceType = "device_type"
+        case joinedAt = "joined_at"
+        case isCreator = "is_creator"
+    }
+
+    /// 加入时长显示（如 "2天前加入"）
+    var joinedTimeAgo: String {
+        let now = Date()
+        let interval = now.timeIntervalSince(joinedAt)
+
+        if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)分钟前加入"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)小时前加入"
+        } else {
+            let days = Int(interval / 86400)
+            return "\(days)天前加入"
+        }
+    }
+}
