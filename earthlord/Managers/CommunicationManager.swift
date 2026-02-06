@@ -606,7 +606,7 @@ final class CommunicationManager: ObservableObject {
 
                 let deviceType = devices.first?.deviceType
 
-                // 查询用户呼号（从消息表获取，因为已经有 sender_callsign）
+                // 查询用户呼号（从消息表获取）
                 let messages: [ChannelMessage] = try await client
                     .from("channel_messages")
                     .select()
@@ -615,7 +615,15 @@ final class CommunicationManager: ObservableObject {
                     .execute()
                     .value
 
-                let callsign = messages.first?.senderCallsign
+                // 如果没有消息历史，生成临时呼号
+                let callsign: String
+                if let existingCallsign = messages.first?.senderCallsign {
+                    callsign = existingCallsign
+                } else {
+                    // 使用用户 ID 前 8 位作为临时呼号
+                    let userIdPrefix = String(subscription.userId.uuidString.prefix(8))
+                    callsign = "用户-\(userIdPrefix)"
+                }
 
                 let member = ChannelMember(
                     id: subscription.id,
