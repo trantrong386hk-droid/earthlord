@@ -568,48 +568,65 @@ final class CommunicationManager: ObservableObject {
     /// 加载频道成员列表
     func loadChannelMembers(channelId: UUID, creatorId: UUID) async -> [ChannelMember] {
         do {
-            // 查询订阅记录并联表获取用户信息
-            let response: [[String: AnyJSON]] = try await client
+            // 先查询订阅记录
+            struct SubscriptionRecord: Codable {
+                let id: UUID
+                let userId: UUID
+                let joinedAt: Date
+
+                enum CodingKeys: String, CodingKey {
+                    case id
+                    case userId = "user_id"
+                    case joinedAt = "joined_at"
+                }
+            }
+
+            let subscriptions: [SubscriptionRecord] = try await client
                 .from("channel_subscriptions")
-                .select("""
-                    id,
-                    user_id,
-                    joined_at,
-                    communication_devices!inner(device_type),
-                    profiles!inner(callsign)
-                """)
+                .select()
                 .eq("channel_id", value: channelId.uuidString)
-                .eq("communication_devices.is_current", value: true)
                 .order("joined_at", ascending: true)
                 .execute()
                 .value
 
-            // 解析为 ChannelMember
-            let members = response.compactMap { dict -> ChannelMember? in
-                guard let idStr = dict["id"]?.stringValue,
-                      let id = UUID(uuidString: idStr),
-                      let userIdStr = dict["user_id"]?.stringValue,
-                      let userId = UUID(uuidString: userIdStr),
-                      let joinedAtStr = dict["joined_at"]?.stringValue else {
-                    return nil
-                }
+            print("📡 [频道成员] 查询到 \(subscriptions.count) 个订阅记录")
 
-                // 使用 ChannelMessage 的日期解析逻辑
-                let joinedAt = parseMessageDate(joinedAtStr) ?? Date()
+            // 为每个订阅查询用户设备信息
+            var members: [ChannelMember] = []
 
-                let callsign = dict["profiles"]?.objectValue?["callsign"]?.stringValue
-                let deviceTypeStr = dict["communication_devices"]?.objectValue?["device_type"]?.stringValue
-                let deviceType = deviceTypeStr.flatMap { DeviceType(rawValue: $0) }
-                let isCreator = userId == creatorId
+            for subscription in subscriptions {
+                // 查询用户当前设备
+                let devices: [CommunicationDevice] = try await client
+                    .from("communication_devices")
+                    .select()
+                    .eq("user_id", value: subscription.userId.uuidString)
+                    .eq("is_current", value: true)
+                    .execute()
+                    .value
 
-                return ChannelMember(
-                    id: id,
-                    userId: userId,
+                let deviceType = devices.first?.deviceType
+
+                // 查询用户呼号（从消息表获取，因为已经有 sender_callsign）
+                let messages: [ChannelMessage] = try await client
+                    .from("channel_messages")
+                    .select()
+                    .eq("sender_id", value: subscription.userId.uuidString)
+                    .limit(1)
+                    .execute()
+                    .value
+
+                let callsign = messages.first?.senderCallsign
+
+                let member = ChannelMember(
+                    id: subscription.id,
+                    userId: subscription.userId,
                     callsign: callsign,
                     deviceType: deviceType,
-                    joinedAt: joinedAt,
-                    isCreator: isCreator
+                    joinedAt: subscription.joinedAt,
+                    isCreator: subscription.userId == creatorId
                 )
+
+                members.append(member)
             }
 
             // 缓存结果
