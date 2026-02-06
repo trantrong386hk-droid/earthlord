@@ -298,10 +298,19 @@ struct ChannelCenterView: View {
     }
 
     private var filteredDiscoverChannels: [CommunicationChannel] {
-        if searchText.isEmpty {
-            return communicationManager.channels
+        // 获取所有已订阅的频道 ID
+        let subscribedChannelIds = Set(communicationManager.subscribedChannels.map { $0.channel.id })
+
+        // 过滤出未订阅的频道
+        let unsubscribedChannels = communicationManager.channels.filter { channel in
+            !subscribedChannelIds.contains(channel.id)
         }
-        return communicationManager.channels.filter {
+
+        // 再应用搜索过滤
+        if searchText.isEmpty {
+            return unsubscribedChannels
+        }
+        return unsubscribedChannels.filter {
             $0.name.localizedCaseInsensitiveContains(searchText) ||
             $0.channelCode.localizedCaseInsensitiveContains(searchText)
         }
