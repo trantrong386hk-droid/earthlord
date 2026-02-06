@@ -147,7 +147,9 @@ struct ChannelCenterView: View {
     // MARK: - 频道行
 
     private func channelRow(_ channel: CommunicationChannel, isSubscribed: Bool) -> some View {
-        Button(action: {
+        let isCreator = authManager.currentUser?.id == channel.creatorId
+
+        return Button(action: {
             // 所有频道点击都先显示详情
             selectedChannelForDetail = channel
         }) {
@@ -155,12 +157,20 @@ struct ChannelCenterView: View {
                 // 图标
                 ZStack {
                     Circle()
-                        .fill(ApocalypseTheme.primary.opacity(0.2))
+                        .fill(isCreator ? ApocalypseTheme.warning.opacity(0.2) : ApocalypseTheme.primary.opacity(0.2))
                         .frame(width: 44, height: 44)
 
                     Image(systemName: channel.channelType.iconName)
                         .font(.system(size: 20))
-                        .foregroundColor(ApocalypseTheme.primary)
+                        .foregroundColor(isCreator ? ApocalypseTheme.warning : ApocalypseTheme.primary)
+
+                    // 创建者皇冠徽章
+                    if isCreator {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.yellow)
+                            .offset(x: 16, y: -16)
+                    }
                 }
 
                 // 频道信息
@@ -171,11 +181,27 @@ struct ChannelCenterView: View {
                             .fontWeight(.medium)
                             .foregroundColor(ApocalypseTheme.textPrimary)
 
-                        // 订阅标记
-                        if isSubscribed {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundColor(.green)
+                        // 创建者或订阅标记
+                        if isCreator {
+                            Text("创建者")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.yellow)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule()
+                                        .fill(ApocalypseTheme.warning.opacity(0.2))
+                                )
+                        } else if isSubscribed {
+                            HStack(spacing: 2) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 10))
+                                Text("已订阅")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.green)
                         }
                     }
 
