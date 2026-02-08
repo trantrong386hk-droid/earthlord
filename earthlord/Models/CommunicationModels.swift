@@ -69,8 +69,8 @@ enum DeviceType: String, Codable, CaseIterable {
     var unlockRequirement: String {
         switch self {
         case .radio, .walkieTalkie: return "默认拥有"
-        case .campRadio: return "需建造「营地电台」建筑"
-        case .satellite: return "需建造「通讯塔」建筑"
+        case .campRadio: return "默认拥有"
+        case .satellite: return "默认拥有"
         }
     }
 }

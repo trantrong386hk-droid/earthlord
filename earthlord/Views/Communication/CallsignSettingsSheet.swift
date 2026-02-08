@@ -11,7 +11,7 @@ import Supabase
 
 struct CallsignSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var authManager: AuthManager
+    @ObservedObject private var authManager = AuthManager.shared
 
     @State private var callsign = ""
     @State private var currentCallsign: String?
@@ -320,5 +320,4 @@ struct FormatExampleRow: View {
 
 #Preview {
     CallsignSettingsSheet()
-        .environmentObject(AuthManager.shared)
 }
