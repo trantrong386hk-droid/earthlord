@@ -470,6 +470,94 @@ final class CommunicationManager: ObservableObject {
         }
     }
 
+    // MARK: - 音频消息相关
+
+    /// 上传音频文件到 Supabase Storage
+    func uploadAudioFile(fileURL: URL) async throws -> String {
+        let fileName = fileURL.lastPathComponent
+        let bucketName = "audio-messages"
+
+        // 读取文件数据
+        let fileData = try Data(contentsOf: fileURL)
+
+        // 上传到 Storage
+        let uploadResponse = try await client.storage
+            .from(bucketName)
+            .upload(
+                path: fileName,
+                file: fileData,
+                options: FileOptions(contentType: "audio/m4a")
+            )
+
+        // 获取公开 URL（使用上传返回的 path）
+        let publicURL = try client.storage
+            .from(bucketName)
+            .getPublicURL(path: uploadResponse.path)
+
+        print("🎵 [音频] ✅ 上传成功: \(publicURL)")
+        return publicURL.absoluteString
+    }
+
+    /// 发送音频消息
+    func sendAudioMessage(
+        channelId: UUID,
+        audioURL: URL,
+        duration: TimeInterval,
+        latitude: Double? = nil,
+        longitude: Double? = nil,
+        deviceType: String? = nil
+    ) async -> Bool {
+        isSendingMessage = true
+        errorMessage = nil
+
+        do {
+            // 1. 上传音频文件
+            let publicURL = try await uploadAudioFile(fileURL: audioURL)
+
+            // 2. 构建 metadata JSON
+            var metadataDict: [String: AnyJSON] = [
+                "message_type": .string("audio"),
+                "audio_url": .string(publicURL),
+                "audio_duration": .double(duration)
+            ]
+            if let device = deviceType {
+                metadataDict["device_type"] = .string(device)
+            }
+
+            // 3. 用 RPC 发送消息（含 p_metadata 参数）
+            var params: [String: AnyJSON] = [
+                "p_channel_id": .string(channelId.uuidString),
+                "p_content": .string("[语音消息]"),
+                "p_metadata": .object(metadataDict)
+            ]
+
+            if let lat = latitude, let lon = longitude {
+                params["p_latitude"] = .double(lat)
+                params["p_longitude"] = .double(lon)
+            }
+
+            if let device = deviceType {
+                params["p_device_type"] = .string(device)
+            }
+
+            try await client
+                .rpc("send_channel_message", params: params)
+                .execute()
+
+            // 发送成功后重新加载消息
+            await loadChannelMessages(channelId: channelId)
+
+            print("🎵 [音频] ✅ 音频消息发送成功")
+            isSendingMessage = false
+            return true
+        } catch {
+            errorMessage = "发送失败: \(error.localizedDescription)"
+            print("🎵 [音频] ❌ 发送失败: \(error)")
+            isSendingMessage = false
+            return false
+        }
+    }
+
     // MARK: - 启动 Realtime 订阅
 
     func startRealtimeSubscription() {
@@ -859,6 +947,108 @@ final class CommunicationManager: ObservableObject {
             return String(format: "%.1fkm", distance)
         } else {
             return String(format: "%.0fkm", distance)
+        }
+    }
+
+    // MARK: - 官方频道相关
+
+    /// 官方频道固定 UUID
+    static let officialChannelId = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+
+    /// 确保用户订阅了官方频道（强制订阅）
+    func ensureOfficialChannelSubscribed(userId: UUID) async {
+        let officialId = CommunicationManager.officialChannelId
+
+        if subscribedChannels.contains(where: { $0.channel.id == officialId }) {
+            print("✅ [官方频道] 已订阅")
+            return
+        }
+
+        do {
+            let params: [String: AnyJSON] = [
+                "p_user_id": .string(userId.uuidString),
+                "p_channel_id": .string(officialId.uuidString)
+            ]
+
+            let _: Bool = try await client
+                .rpc("subscribe_to_channel", params: params)
+                .execute()
+                .value
+
+            await loadSubscribedChannels(userId: userId)
+            print("✅ [官方频道] 已自动订阅")
+        } catch {
+            print("❌ [官方频道] 订阅失败: \(error)")
+        }
+    }
+
+    /// 检查是否是官方频道
+    func isOfficialChannel(_ channelId: UUID) -> Bool {
+        return channelId == CommunicationManager.officialChannelId
+    }
+
+    // MARK: - 消息聚合相关
+
+    /// 频道摘要（用于消息聚合页）
+    struct ChannelSummary: Identifiable {
+        let channel: CommunicationChannel
+        let lastMessage: ChannelMessage?
+        let unreadCount: Int
+
+        var id: UUID { channel.id }
+    }
+
+    /// 获取所有订阅频道的摘要（最新消息 + 未读数）
+    func getChannelSummaries() -> [ChannelSummary] {
+        return subscribedChannels.map { subscribedChannel in
+            let messages = channelMessages[subscribedChannel.channel.id] ?? []
+            let lastMessage = messages.last
+            let unreadCount = 0  // 简化版：暂不计算真实未读数
+
+            return ChannelSummary(
+                channel: subscribedChannel.channel,
+                lastMessage: lastMessage,
+                unreadCount: unreadCount
+            )
+        }.sorted { summary1, summary2 in
+            // 官方频道置顶
+            if summary1.channel.channelType == .official && summary2.channel.channelType != .official {
+                return true
+            }
+            if summary1.channel.channelType != .official && summary2.channel.channelType == .official {
+                return false
+            }
+            // 其他按最新消息时间排序
+            let time1 = summary1.lastMessage?.createdAt ?? summary1.channel.createdAt
+            let time2 = summary2.lastMessage?.createdAt ?? summary2.channel.createdAt
+            return time1 > time2
+        }
+    }
+
+    /// 加载所有订阅频道的最新消息（用于消息聚合页初始化）
+    func loadAllChannelLatestMessages() async {
+        for subscribedChannel in subscribedChannels {
+            let channelId = subscribedChannel.channel.id
+            do {
+                let messages: [ChannelMessage] = try await client
+                    .from("channel_messages")
+                    .select()
+                    .eq("channel_id", value: channelId.uuidString)
+                    .order("created_at", ascending: false)
+                    .limit(1)
+                    .execute()
+                    .value
+
+                if let lastMessage = messages.first {
+                    if channelMessages[channelId] == nil {
+                        channelMessages[channelId] = [lastMessage]
+                    } else if !channelMessages[channelId]!.contains(where: { $0.id == lastMessage.id }) {
+                        channelMessages[channelId]?.append(lastMessage)
+                    }
+                }
+            } catch {
+                print("❌ [消息聚合] 加载频道 \(channelId) 最新消息失败: \(error)")
+            }
         }
     }
 }

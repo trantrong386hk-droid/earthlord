@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - 设备类型
 
@@ -28,7 +29,7 @@ enum DeviceType: String, Codable, CaseIterable {
     var iconName: String {
         switch self {
         case .radio: return "radio"
-        case .walkieTalkie: return "walkie.talkie.radio"
+        case .walkieTalkie: return "person.wave.2.fill"
         case .campRadio: return "antenna.radiowaves.left.and.right"
         case .satellite: return "antenna.radiowaves.left.and.right.circle"
         }
@@ -139,7 +140,7 @@ enum ChannelType: String, Codable, CaseIterable {
         switch self {
         case .official: return "megaphone.fill"
         case .public: return "globe"
-        case .walkie: return "walkie.talkie.radio"
+        case .walkie: return "person.wave.2.fill"
         case .camp: return "antenna.radiowaves.left.and.right"
         case .satellite: return "antenna.radiowaves.left.and.right.circle.fill"
         }
@@ -301,18 +302,40 @@ struct LocationPoint: Codable {
 
 struct MessageMetadata: Codable {
     let deviceType: String?
+    let category: String?  // 消息分类（官方频道专用）
+    let messageType: String?  // 消息类型："text" 或 "audio"
+    let audioUrl: String?  // 音频文件 URL
+    let audioDuration: Double?  // 音频时长（秒）
 
     enum CodingKeys: String, CodingKey {
         case deviceType = "device_type"
+        case category
+        case messageType = "message_type"
+        case audioUrl = "audio_url"
+        case audioDuration = "audio_duration"
     }
 
-    init(deviceType: String? = nil) {
+    init(
+        deviceType: String? = nil,
+        category: String? = nil,
+        messageType: String? = nil,
+        audioUrl: String? = nil,
+        audioDuration: Double? = nil
+    ) {
         self.deviceType = deviceType
+        self.category = category
+        self.messageType = messageType
+        self.audioUrl = audioUrl
+        self.audioDuration = audioDuration
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         deviceType = try container.decodeIfPresent(String.self, forKey: .deviceType)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        messageType = try container.decodeIfPresent(String.self, forKey: .messageType)
+        audioUrl = try container.decodeIfPresent(String.self, forKey: .audioUrl)
+        audioDuration = try container.decodeIfPresent(Double.self, forKey: .audioDuration)
     }
 }
 
@@ -477,5 +500,66 @@ struct ChannelMember: Identifiable, Codable {
             let days = Int(interval / 86400)
             return "\(days)天前加入"
         }
+    }
+}
+
+// MARK: - 消息分类（官方频道专用）
+
+enum MessageCategory: String, Codable, CaseIterable {
+    case survival = "survival"   // 生存指南
+    case news = "news"           // 游戏资讯
+    case mission = "mission"     // 任务发布
+    case alert = "alert"         // 紧急广播
+
+    var displayName: String {
+        switch self {
+        case .survival: return "生存指南"
+        case .news: return "游戏资讯"
+        case .mission: return "任务发布"
+        case .alert: return "紧急广播"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .survival: return .green
+        case .news: return .blue
+        case .mission: return .orange
+        case .alert: return .red
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .survival: return "leaf.fill"
+        case .news: return "newspaper.fill"
+        case .mission: return "target"
+        case .alert: return "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+// MARK: - ChannelMessage 扩展
+
+extension ChannelMessage {
+    /// 消息分类（从 metadata 中解析）
+    var category: MessageCategory? {
+        guard let categoryString = metadata?.category else { return nil }
+        return MessageCategory(rawValue: categoryString)
+    }
+
+    /// 是否是音频消息
+    var isAudioMessage: Bool {
+        return metadata?.messageType == "audio"
+    }
+
+    /// 音频 URL
+    var audioUrl: String? {
+        return metadata?.audioUrl
+    }
+
+    /// 音频时长
+    var audioDuration: Double? {
+        return metadata?.audioDuration
     }
 }

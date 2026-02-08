@@ -83,10 +83,14 @@ struct CommunicationTabView: View {
                 switch selectedSection {
                 case .messages:
                     MessageCenterView()
+                        .environmentObject(authManager)
+                        .environmentObject(communicationManager)
                 case .channels:
                     ChannelCenterView()
                 case .call:
                     PTTCallView()
+                        .environmentObject(authManager)
+                        .environmentObject(communicationManager)
                 case .devices:
                     DeviceManagementView()
                 }
@@ -96,6 +100,10 @@ struct CommunicationTabView: View {
             if let userId = authManager.currentUser?.id {
                 Task {
                     await communicationManager.loadDevices(userId: userId)
+                    await communicationManager.ensureOfficialChannelSubscribed(userId: userId)
+
+                    // 启动 Realtime 订阅
+                    communicationManager.startRealtimeSubscription()
                 }
             }
         }

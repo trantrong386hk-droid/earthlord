@@ -327,17 +327,25 @@ struct MessageBubbleView: View {
     // MARK: - 消息内容
 
     private var messageContent: some View {
-        Text(message.content)
-            .font(.body)
-            .foregroundColor(isOwnMessage ? .white : ApocalypseTheme.textPrimary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                isOwnMessage
-                    ? ApocalypseTheme.primary
-                    : ApocalypseTheme.cardBackground
-            )
-            .cornerRadius(16)
+        Group {
+            if message.isAudioMessage {
+                // 音频消息
+                AudioMessageBubble(message: message, isSentByMe: isOwnMessage)
+            } else {
+                // 文字消息
+                Text(message.content)
+                    .font(.body)
+                    .foregroundColor(isOwnMessage ? .white : ApocalypseTheme.textPrimary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        isOwnMessage
+                            ? ApocalypseTheme.primary
+                            : ApocalypseTheme.cardBackground
+                    )
+                    .cornerRadius(16)
+            }
+        }
     }
 
     // MARK: - 时间标签

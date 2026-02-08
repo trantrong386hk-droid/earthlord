@@ -12,12 +12,14 @@ import Auth
 struct ChannelCenterView: View {
     @ObservedObject private var authManager = AuthManager.shared
     @ObservedObject private var communicationManager = CommunicationManager.shared
+    @ObservedObject private var locationManager = LocationManager.shared
 
     @State private var selectedTab = 0  // 0: 我的频道, 1: 发现频道
     @State private var searchText = ""
     @State private var showCreateSheet = false
     @State private var selectedChannelForDetail: CommunicationChannel?
     @State private var selectedChannelForChat: CommunicationChannel?
+    @State private var selectedOfficialChannel: CommunicationChannel?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,6 +48,13 @@ struct ChannelCenterView: View {
         .fullScreenCover(item: $selectedChannelForChat) { channel in
             NavigationStack {
                 ChannelChatView(channel: channel)
+            }
+        }
+        .fullScreenCover(item: $selectedOfficialChannel) { channel in
+            NavigationStack {
+                OfficialChannelDetailView(channel: channel)
+                    .environmentObject(authManager)
+                    .environmentObject(communicationManager)
             }
         }
         .task {
@@ -150,8 +159,13 @@ struct ChannelCenterView: View {
         let isCreator = authManager.currentUser?.id == channel.creatorId
 
         return Button(action: {
-            // 所有频道点击都先显示详情
-            selectedChannelForDetail = channel
+            // 官方频道直接进入官方详情页
+            if channel.channelType == .official {
+                selectedOfficialChannel = channel
+            } else {
+                // 其他频道先显示详情
+                selectedChannelForDetail = channel
+            }
         }) {
             HStack(spacing: 12) {
                 // 图标
