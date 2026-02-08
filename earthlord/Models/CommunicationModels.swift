@@ -185,6 +185,42 @@ struct CommunicationChannel: Codable, Identifiable, Hashable {
     let createdAt: Date
     let updatedAt: Date
 
+    // 创建者位置（原始 PostGIS 格式）
+    private let creatorLocationRaw: String?
+
+    // 解析后的创建者位置
+    var creatorLocation: LocationPoint? {
+        guard let raw = creatorLocationRaw else { return nil }
+        return LocationPoint.fromPostGIS(raw)
+    }
+
+    // 自定义初始化器（兼容旧代码）
+    init(
+        id: UUID,
+        creatorId: UUID,
+        channelType: ChannelType,
+        channelCode: String,
+        name: String,
+        description: String? = nil,
+        isActive: Bool,
+        memberCount: Int,
+        createdAt: Date,
+        updatedAt: Date,
+        creatorLocationRaw: String? = nil
+    ) {
+        self.id = id
+        self.creatorId = creatorId
+        self.channelType = channelType
+        self.channelCode = channelCode
+        self.name = name
+        self.description = description
+        self.isActive = isActive
+        self.memberCount = memberCount
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.creatorLocationRaw = creatorLocationRaw
+    }
+
     enum CodingKeys: String, CodingKey {
         case id
         case creatorId = "creator_id"
@@ -196,6 +232,7 @@ struct CommunicationChannel: Codable, Identifiable, Hashable {
         case memberCount = "member_count"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case creatorLocationRaw = "creator_location"
     }
 }
 

@@ -179,7 +179,7 @@ final class CommunicationManager: ObservableObject {
     func loadPublicChannels() async {
         do {
             let response: [CommunicationChannel] = try await client
-                .from("communication_channels")
+                .from("communication_channels_with_location")
                 .select()
                 .eq("is_active", value: true)
                 .order("created_at", ascending: false)
@@ -212,7 +212,7 @@ final class CommunicationManager: ObservableObject {
             if !subscriptions.isEmpty {
                 let channelIds = subscriptions.map { $0.channelId.uuidString }
                 let channelList: [CommunicationChannel] = try await client
-                    .from("communication_channels")
+                    .from("communication_channels_with_location")
                     .select()
                     .in("id", values: channelIds)
                     .execute()
@@ -243,12 +243,26 @@ final class CommunicationManager: ObservableObject {
         errorMessage = nil
 
         do {
-            let params: [String: AnyJSON] = [
+            // 获取当前用户位置
+            let location = LocationManager.shared.userLocation
+
+            var params: [String: AnyJSON] = [
                 "p_creator_id": .string(userId.uuidString),
                 "p_channel_type": .string(type.rawValue),
                 "p_name": .string(name),
                 "p_description": description.map { .string($0) } ?? .null
             ]
+
+            // 添加位置参数（如果可用）
+            if let lat = location?.latitude, let lon = location?.longitude {
+                params["p_latitude"] = .double(lat)
+                params["p_longitude"] = .double(lon)
+                print("📡 [频道] 创建频道时记录位置: \(lat), \(lon)")
+            } else {
+                print("📡 [频道] ⚠️ 创建频道时无法获取位置")
+                params["p_latitude"] = .null
+                params["p_longitude"] = .null
+            }
 
             let response: UUID = try await client
                 .rpc("create_channel_with_subscription", params: params)
@@ -792,6 +806,60 @@ final class CommunicationManager: ObservableObject {
             return nil
         }
         return LocationPoint(latitude: coordinate.latitude, longitude: coordinate.longitude)
+    }
+
+    // MARK: - 频道距离计算
+
+    /// 计算频道距离（从创建者位置到当前用户位置）
+    /// - Parameter channel: 频道对象
+    /// - Returns: 距离（公里），如果无法计算则返回 nil
+    func calculateChannelDistance(_ channel: CommunicationChannel) -> Double? {
+        print("🔍 [距离计算] 开始计算频道 \(channel.name) 的距离")
+
+        // 1. 检查频道是否有位置信息
+        guard let channelLocation = channel.creatorLocation else {
+            print("⚠️ [距离计算] 频道 \(channel.name) 没有位置信息")
+            return nil
+        }
+        print("✅ [距离计算] 频道位置: \(channelLocation.latitude), \(channelLocation.longitude)")
+
+        // 2. 检查用户当前位置
+        guard let userLocation = LocationManager.shared.userLocation else {
+            print("⚠️ [距离计算] 用户位置未获取")
+            return nil
+        }
+        print("✅ [距离计算] 用户位置: \(userLocation.latitude), \(userLocation.longitude)")
+
+        // 3. 使用现有的距离计算方法
+        let distance = calculateDistance(
+            from: CLLocationCoordinate2D(
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude
+            ),
+            to: CLLocationCoordinate2D(
+                latitude: channelLocation.latitude,
+                longitude: channelLocation.longitude
+            )
+        )
+
+        print("✅ [距离计算] 计算结果: \(distance) km")
+        return distance
+    }
+
+    /// 格式化距离为可读字符串
+    /// - Parameter distance: 距离（公里）
+    /// - Returns: 格式化字符串（如 "2.5km"、"500m"）
+    func formatDistance(_ distance: Double?) -> String? {
+        guard let distance = distance else { return nil }
+
+        if distance < 1.0 {
+            let meters = Int(distance * 1000)
+            return "\(meters)m"
+        } else if distance < 10.0 {
+            return String(format: "%.1fkm", distance)
+        } else {
+            return String(format: "%.0fkm", distance)
+        }
     }
 }
 

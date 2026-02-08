@@ -336,7 +336,7 @@ struct ChannelDetailView: View {
     let mockChannel = CommunicationChannel(
         id: UUID(),
         creatorId: UUID(),
-        channelType: .public,
+        channelType: .`public`,
         channelCode: "PUB-TEST",
         name: "测试频道",
         description: "这是一个测试频道的描述信息",
@@ -346,5 +346,5 @@ struct ChannelDetailView: View {
         updatedAt: Date()
     )
 
-    return ChannelDetailView(channel: mockChannel)
+    ChannelDetailView(channel: mockChannel)
 }

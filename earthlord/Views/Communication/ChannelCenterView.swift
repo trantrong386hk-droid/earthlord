@@ -216,6 +216,21 @@ struct ChannelCenterView: View {
                         Text("\(channel.memberCount) 成员")
                             .font(.caption)
                             .foregroundColor(ApocalypseTheme.textSecondary)
+
+                        // 显示距离（如果可用）
+                        if let distance = communicationManager.calculateChannelDistance(channel),
+                           let distanceText = communicationManager.formatDistance(distance) {
+                            Text("·")
+                                .foregroundColor(ApocalypseTheme.textSecondary)
+
+                            HStack(spacing: 3) {
+                                Image(systemName: "location.fill")
+                                    .font(.system(size: 9))
+                                Text(distanceText)
+                                    .font(.caption)
+                            }
+                            .foregroundColor(ApocalypseTheme.success)
+                        }
                     }
                 }
 

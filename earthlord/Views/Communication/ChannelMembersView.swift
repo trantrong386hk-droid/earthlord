@@ -249,7 +249,7 @@ private struct MemberRow: View {
     ChannelMembersView(channel: CommunicationChannel(
         id: UUID(),
         creatorId: UUID(),
-        channelType: .public,
+        channelType: .`public`,
         channelCode: "PUB-001",
         name: "测试频道",
         description: "这是一个测试频道",
