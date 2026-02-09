@@ -44,11 +44,15 @@ class InventoryManager: ObservableObject {
         items.reduce(0) { $0 + $1.totalVolume }
     }
 
-    /// 背包容量上限（kg）
-    let weightCapacity: Double = 30.0
+    /// 背包容量上限（kg）- 根据订阅状态动态调整
+    var weightCapacity: Double {
+        EntitlementManager.shared.backpackWeightCapacity
+    }
 
-    /// 背包体积上限（L）
-    let volumeCapacity: Double = 25.0
+    /// 背包体积上限（L）- 根据订阅状态动态调整
+    var volumeCapacity: Double {
+        EntitlementManager.shared.backpackVolumeCapacity
+    }
 
     // MARK: - 初始化
 

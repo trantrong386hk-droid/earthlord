@@ -127,7 +127,7 @@ struct TerritoryTestView: View {
                 }
                 .background(Color.black.opacity(0.3))
                 .cornerRadius(8)
-                .onChange(of: logger.logs.count) { _ in
+                .onChange(of: logger.logs.count) {
                     // 自动滚动到最新日志
                     if let lastLog = logger.logs.last {
                         withAnimation(.easeOut(duration: 0.2)) {

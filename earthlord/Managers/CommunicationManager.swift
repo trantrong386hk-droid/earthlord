@@ -158,9 +158,10 @@ final class CommunicationManager: ObservableObject {
         currentDevice?.deviceType.canSend ?? false
     }
 
-    /// 获取当前设备通讯范围
+    /// 获取当前设备通讯范围（含订阅加成）
     func getCurrentRange() -> Double {
-        currentDevice?.deviceType.range ?? 3.0
+        let baseRange = currentDevice?.deviceType.range ?? 3.0
+        return baseRange * (1.0 + EntitlementManager.shared.communicationRangeBonus)
     }
 
     /// 检查设备是否已解锁

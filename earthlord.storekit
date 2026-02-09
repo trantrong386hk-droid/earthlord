@@ -1,0 +1,231 @@
+{
+  "identifier" : "E3D2F1A0-8C4B-4A3E-9F5D-1B2C3D4E5F60",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "6",
+      "familyShareable" : false,
+      "internalID" : "consumable_resource_box",
+      "localizations" : [
+        {
+          "description" : "木材x50、石头x50、金属板x30、电子元件x20",
+          "displayName" : "资源补给箱",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "com.earthlord.resource_box",
+      "referenceName" : "Resource Box",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "12",
+      "familyShareable" : false,
+      "internalID" : "consumable_instant_build",
+      "localizations" : [
+        {
+          "description" : "立即完成一个建筑的建造或升级",
+          "displayName" : "即时建造卡",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "com.earthlord.instant_build",
+      "referenceName" : "Instant Build",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "18",
+      "familyShareable" : false,
+      "internalID" : "consumable_exploration_boost",
+      "localizations" : [
+        {
+          "description" : "24小时内探索奖励x2，与订阅叠加可达x3",
+          "displayName" : "探索增幅器",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "com.earthlord.exploration_boost",
+      "referenceName" : "Exploration Boost",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "25",
+      "familyShareable" : false,
+      "internalID" : "consumable_legendary_crate",
+      "localizations" : [
+        {
+          "description" : "3个传奇级AI生成物品，独特故事背景",
+          "displayName" : "传奇物资箱",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "com.earthlord.legendary_crate",
+      "referenceName" : "Legendary Crate",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "earthlord",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : "",
+    "_storeKitErrors" : [
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Message"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Win Back Offer"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "elite_survivor_group",
+      "localizations" : [
+        {
+          "description" : "精英幸存者订阅",
+          "displayName" : "精英幸存者",
+          "locale" : "zh_CN"
+        }
+      ],
+      "name" : "Elite Survivor",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "25",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "sub_elite_monthly",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "无限探索、背包扩容、建造加速、奖励加成",
+              "displayName" : "精英幸存者（月）",
+              "locale" : "zh_CN"
+            }
+          ],
+          "productID" : "com.earthlord.elite.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Elite Monthly",
+          "subscriptionGroupID" : "elite_survivor_group",
+          "type" : "RecurringSubscription",
+          "winBackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "198",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "sub_elite_annual",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "年付更划算，约66折，包含月订阅所有特权",
+              "displayName" : "精英幸存者（年）",
+              "locale" : "zh_CN"
+            }
+          ],
+          "productID" : "com.earthlord.elite.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Elite Annual",
+          "subscriptionGroupID" : "elite_survivor_group",
+          "type" : "RecurringSubscription",
+          "winBackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

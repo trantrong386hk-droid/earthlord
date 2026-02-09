@@ -92,4 +92,39 @@ final class AIItemGenerator {
 
         return nil
     }
+
+    /// 为传奇宝箱生成 AI 物品（不需要 POI）
+    /// - Parameter count: 生成物品数量
+    /// - Returns: AI 生成的物品数组，失败返回 nil
+    func generateLegendaryItems(count: Int = 3) async -> [AIGeneratedItem]? {
+        print("🤖 [AI物品] 开始生成传奇宝箱物品，数量: \(count)")
+
+        let request = AIGenerateRequest(
+            poi: .init(
+                name: "传奇物资箱",
+                type: "special",
+                dangerLevel: 5
+            ),
+            itemCount: count
+        )
+
+        do {
+            let response: AIGenerateResponse = try await supabase.functions
+                .invoke("generate-ai-item", options: .init(body: request))
+
+            if response.success, let items = response.items {
+                print("🤖 [AI物品] ✅ 传奇宝箱生成成功，获得 \(items.count) 件物品")
+                for (index, item) in items.enumerated() {
+                    print("🤖 [AI物品]   \(index + 1). \(item.name) [\(item.rarity)] - \(item.category)")
+                }
+                return items
+            } else {
+                print("🤖 [AI物品] ❌ 传奇宝箱生成失败: \(response.error ?? "未知错误")")
+            }
+        } catch {
+            print("🤖 [AI物品] ❌ 传奇宝箱调用失败: \(error)")
+        }
+
+        return nil
+    }
 }

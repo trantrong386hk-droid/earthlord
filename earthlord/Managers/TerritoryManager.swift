@@ -62,6 +62,14 @@ class TerritoryManager: ObservableObject {
     ) async throws -> Territory {
         print("🏴 [TerritoryManager] 开始上传领地，点数: \(coordinates.count)")
 
+        // 检查每日圈地次数限制
+        let entitlement = EntitlementManager.shared
+        guard entitlement.canClaimTerritory() else {
+            print("🏴 [TerritoryManager] 每日圈地次数已用尽")
+            entitlement.triggerPaywall(reason: .territoryLimit)
+            throw TerritoryError.uploadFailed("今日圈地次数已用尽，请升级精英幸存者")
+        }
+
         // 1. 获取当前用户 ID
         guard let userId = try? await supabase.auth.session.user.id else {
             throw TerritoryError.notAuthenticated
@@ -105,6 +113,9 @@ class TerritoryManager: ObservableObject {
 
         print("🏴 [TerritoryManager] 上传成功，ID: \(response.id)")
         TerritoryLogger.shared.log("领地上传成功，ID: \(response.id)", type: .success)
+
+        // 增加每日圈地计数
+        EntitlementManager.shared.incrementDailyCount(for: .territoryClaim)
 
         // 7. 更新本地列表
         myTerritories.append(response)

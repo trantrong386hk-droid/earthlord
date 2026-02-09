@@ -20,6 +20,10 @@ struct earthlordApp: App {
         // 确保语言设置在 App 启动时就应用
         _ = LanguageManager.shared
 
+        // 初始化内购系统（启动交易监听）
+        print("🔵 [App] 初始化内购系统...")
+        _ = StoreKitManager.shared
+
         // App 启动时开始位置上报
         print("🔵 [App] 初始化玩家位置上报...")
         Task { @MainActor in

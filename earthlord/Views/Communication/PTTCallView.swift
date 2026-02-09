@@ -575,7 +575,7 @@ struct PTTCallView: View {
 
     private func sendVoiceMessage(audioURL: URL, duration: TimeInterval) {
         guard let channel = selectedChannel,
-              let userId = authManager.currentUser?.id,
+              authManager.currentUser?.id != nil,
               let device = currentDevice,
               duration > 0.5 else {  // 至少0.5秒
             print("⚠️ [PTT] 录音时长太短，已取消")
@@ -585,37 +585,30 @@ struct PTTCallView: View {
         isSending = true
 
         Task {
-            do {
-                let location = LocationManager.shared.userLocation
-                let success = await communicationManager.sendAudioMessage(
-                    channelId: channel.id,
-                    audioURL: audioURL,
-                    duration: duration,
-                    latitude: location?.latitude,
-                    longitude: location?.longitude,
-                    deviceType: device.deviceType.rawValue
-                )
+            let location = LocationManager.shared.userLocation
+            let success = await communicationManager.sendAudioMessage(
+                channelId: channel.id,
+                audioURL: audioURL,
+                duration: duration,
+                latitude: location?.latitude,
+                longitude: location?.longitude,
+                deviceType: device.deviceType.rawValue
+            )
 
-                await MainActor.run {
-                    if success {
-                        showSuccessToast = true
+            await MainActor.run {
+                if success {
+                    showSuccessToast = true
 
-                        // 2秒后隐藏提示
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            showSuccessToast = false
-                        }
-
-                        // 删除本地录音文件
-                        audioRecorder.deleteRecording(at: audioURL)
+                    // 2秒后隐藏提示
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        showSuccessToast = false
                     }
 
-                    isSending = false
+                    // 删除本地录音文件
+                    audioRecorder.deleteRecording(at: audioURL)
                 }
-            } catch {
-                print("❌ [PTT] 发送语音消息失败: \(error)")
-                await MainActor.run {
-                    isSending = false
-                }
+
+                isSending = false
             }
         }
     }

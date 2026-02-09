@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab = 4  // 默认进入「个人」页面
+    @ObservedObject private var entitlementManager = EntitlementManager.shared
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -40,14 +41,11 @@ struct MainTabView: View {
                 }
                 .tag(4)
 
-            MoreTabView()
-                .tabItem {
-                    Image(systemName: "ellipsis")
-                    Text("更多".localized)
-                }
-                .tag(5)
         }
         .tint(ApocalypseTheme.primary)
+        .sheet(isPresented: $entitlementManager.showPaywall) {
+            PaywallView(reason: entitlementManager.paywallReason)
+        }
     }
 }
 

@@ -3,7 +3,7 @@
 //  earthlord
 //
 //  资源模块主入口页面
-//  包含 POI、背包、已购、领地、交易等子模块
+//  包含 POI、背包、已购、交易等子模块
 //
 
 import SwiftUI
@@ -13,15 +13,13 @@ enum ResourceSegment: Int, CaseIterable {
     case poi = 0        // 兴趣点
     case backpack = 1   // 背包
     case purchased = 2  // 已购
-    case territory = 3  // 领地
-    case trade = 4      // 交易
+    case trade = 3      // 交易
 
     var title: String {
         switch self {
         case .poi: return "POI"
         case .backpack: return "背包"
         case .purchased: return "已购"
-        case .territory: return "领地"
         case .trade: return "交易"
         }
     }
@@ -39,9 +37,6 @@ struct ResourcesTabView: View {
 
     /// 导航路径（显式管理，防止状态残留）
     @State private var navigationPath = NavigationPath()
-
-    /// 交易开关状态（假数据）
-    @State private var isTradingEnabled: Bool = false
 
     // MARK: - Body
 
@@ -64,12 +59,6 @@ struct ResourcesTabView: View {
             }
             .navigationTitle("资源")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    // 交易开关
-                    tradingToggle
-                }
-            }
         }
         .onChange(of: selectedTab) { _, newValue in
             if newValue != 2 {
@@ -111,25 +100,6 @@ struct ResourcesTabView: View {
         )
     }
 
-    // MARK: - 交易开关
-
-    private var tradingToggle: some View {
-        HStack(spacing: 8) {
-            Text("交易")
-                .font(.caption)
-                .foregroundColor(isTradingEnabled ? ApocalypseTheme.success : ApocalypseTheme.textMuted)
-
-            Toggle("", isOn: $isTradingEnabled)
-                .toggleStyle(SwitchToggleStyle(tint: ApocalypseTheme.success))
-                .labelsHidden()
-                .scaleEffect(0.8)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(ApocalypseTheme.cardBackground.opacity(0.8))
-        .cornerRadius(8)
-    }
-
     // MARK: - 内容区域
 
     @ViewBuilder
@@ -151,16 +121,7 @@ struct ResourcesTabView: View {
                 subtitle: "功能开发中"
             )
 
-        case .territory:
-            // 领地资源（占位）
-            placeholderView(
-                icon: "building.2.fill",
-                title: "领地资源",
-                subtitle: "功能开发中"
-            )
-
         case .trade:
-            // 交易系统
             TradeMainView()
         }
     }

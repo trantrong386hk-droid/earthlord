@@ -217,9 +217,10 @@ class BuildingManager: ObservableObject {
         // 4. 扣除资源
         try await consumeResources(template.requiredResources)
 
-        // 5. 创建建筑记录
+        // 5. 创建建筑记录（应用建造时间倍率）
         let buildStartedAt = Date()
-        let buildCompletedAt = buildStartedAt.addingTimeInterval(TimeInterval(template.buildTimeSeconds))
+        let adjustedBuildTime = TimeInterval(template.buildTimeSeconds) * EntitlementManager.shared.buildTimeMultiplier
+        let buildCompletedAt = buildStartedAt.addingTimeInterval(adjustedBuildTime)
         let upload = PlayerBuildingUpload(
             userId: userId,
             territoryId: territoryId,
@@ -398,9 +399,10 @@ class BuildingManager: ObservableObject {
             throw error
         }
 
-        // 4. 计算升级资源和时间
+        // 4. 计算升级资源和时间（应用建造时间倍率）
         let upgradeResources = getUpgradeResources(template: template, currentLevel: building.level)
-        let upgradeTimeSeconds = getUpgradeTimeSeconds(template: template, currentLevel: building.level)
+        let baseUpgradeTime = getUpgradeTimeSeconds(template: template, currentLevel: building.level)
+        let upgradeTimeSeconds = Int(Double(baseUpgradeTime) * EntitlementManager.shared.buildTimeMultiplier)
 
         // 5. 扣除资源
         try await consumeResources(upgradeResources)
@@ -604,6 +606,87 @@ class BuildingManager: ObservableObject {
         print("🏗️ [BuildingManager] 所有计时器已清理")
     }
 
+    // MARK: - 即时建造
+
+    /// 查询可用秒建卡数量
+    func availableInstantBuildCards() async -> Int {
+        guard let userId = try? await supabase.auth.session.user.id else { return 0 }
+
+        do {
+            let records: [DBConsumablePurchase] = try await supabase
+                .from("consumable_purchases")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .eq("product_id", value: IAPProductID.instantBuild)
+                .is("consumed_at", value: nil)
+                .execute()
+                .value
+            print("🏗️ [BuildingManager] 可用秒建卡: \(records.count)")
+            return records.count
+        } catch {
+            print("🏗️ [BuildingManager] ❌ 查询秒建卡失败: \(error)")
+            return 0
+        }
+    }
+
+    /// 使用秒建卡立即完成建造/升级
+    func useInstantBuild(for buildingId: UUID) async throws {
+        print("🏗️ [BuildingManager] 使用秒建卡: \(buildingId)")
+
+        // 1. 查找建筑
+        guard let index = playerBuildings.firstIndex(where: { $0.id == buildingId }) else {
+            throw BuildingError.buildingNotFound
+        }
+        let building = playerBuildings[index]
+
+        guard building.status == .constructing || building.status == .upgrading else {
+            throw BuildingError.invalidStatus
+        }
+
+        // 2. 获取用户ID
+        guard let userId = try? await supabase.auth.session.user.id else {
+            throw BuildingError.notAuthenticated
+        }
+
+        // 3. 查询一张未使用的秒建卡
+        let cards: [DBConsumablePurchase] = try await supabase
+            .from("consumable_purchases")
+            .select()
+            .eq("user_id", value: userId.uuidString)
+            .eq("product_id", value: IAPProductID.instantBuild)
+            .is("consumed_at", value: nil)
+            .limit(1)
+            .execute()
+            .value
+
+        guard let card = cards.first else {
+            throw BuildingError.noInstantBuildCards
+        }
+
+        // 4. 标记卡为已消费
+        let consumeUpdate = DBConsumedAtUpdate(consumedAt: Date())
+        try await supabase
+            .from("consumable_purchases")
+            .update(consumeUpdate)
+            .eq("id", value: card.id.uuidString)
+            .execute()
+
+        print("🏗️ [BuildingManager] ✅ 秒建卡已消费: \(card.id)")
+
+        // 5. 停止该建筑的 timer
+        buildingTimers[buildingId]?.invalidate()
+        buildingTimers.removeValue(forKey: buildingId)
+
+        // 6. 完成建造或升级
+        if building.status == .constructing {
+            await completeConstruction(buildingId: buildingId)
+        } else if building.status == .upgrading {
+            await completeUpgrade(buildingId: buildingId, newLevel: building.level + 1)
+        }
+
+        print("🏗️ [BuildingManager] ✅ 即时建造完成: \(buildingId)")
+    }
+
     // MARK: - 拆除操作
 
     /// 拆除建筑
@@ -687,6 +770,32 @@ class BuildingManager: ObservableObject {
 
         // 发送通知
         NotificationCenter.default.post(name: .buildingUpdated, object: nil)
+    }
+}
+
+// MARK: - 秒建卡 DB 模型
+
+/// 消耗品购买记录（查询用）
+struct DBConsumablePurchase: Codable {
+    let id: UUID
+    let userId: UUID
+    let productId: String
+    let consumedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case productId = "product_id"
+        case consumedAt = "consumed_at"
+    }
+}
+
+/// 消耗品消费更新
+struct DBConsumedAtUpdate: Codable {
+    let consumedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case consumedAt = "consumed_at"
     }
 }
 

@@ -251,6 +251,7 @@ enum BuildingError: Error, LocalizedError {
     case maxLevelReached
     case buildingNotFound
     case notAuthenticated
+    case noInstantBuildCards
     case databaseError(String)
 
     var errorDescription: String? {
@@ -270,6 +271,8 @@ enum BuildingError: Error, LocalizedError {
             return "建筑不存在"
         case .notAuthenticated:
             return "用户未登录"
+        case .noInstantBuildCards:
+            return "没有可用的即时建造卡"
         case .databaseError(let message):
             return "数据库错误：\(message)"
         }

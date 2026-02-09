@@ -474,6 +474,14 @@ class ExplorationManager: ObservableObject {
             return
         }
 
+        // 检查每日探索次数限制
+        let entitlement = EntitlementManager.shared
+        guard entitlement.canExplore() else {
+            print("🔍 [探索] 每日探索次数已用尽")
+            entitlement.triggerPaywall(reason: .explorationLimit)
+            return
+        }
+
         print("🔍 [探索] ========== 开始探索 ==========")
         print("🔍 [探索] 时间: \(Date())")
 
@@ -507,6 +515,9 @@ class ExplorationManager: ObservableObject {
 
         // 启动时长计时器
         startDurationTimer()
+
+        // 增加每日探索计数
+        EntitlementManager.shared.incrementDailyCount(for: .exploration)
 
         print("🔍 [探索] 探索已启动（独立追踪模式）")
         print("🔍 [探索] 速度限制: \(maxSpeedLimit) km/h")
@@ -578,8 +589,17 @@ class ExplorationManager: ObservableObject {
         print("🔍 [探索]   - 路径点数: \(path.count)")
         print("🔍 [探索]   - 奖励等级: \(tier.rawValue)")
 
-        // 生成奖励
-        let loot = rewardGenerator.generateLoot(tier: tier)
+        // 生成奖励（应用探索奖励倍率）
+        var loot = rewardGenerator.generateLoot(tier: tier)
+        let lootMultiplier = EntitlementManager.shared.explorationLootMultiplier
+        if lootMultiplier > 1.0 {
+            loot = loot.map { item in
+                var boosted = item
+                boosted.quantity = Int(Double(item.quantity) * lootMultiplier)
+                return boosted
+            }
+            print("🔍 [探索]   - 奖励倍率: x\(lootMultiplier)")
+        }
         print("🔍 [探索]   - 获得物品: \(loot.count) 件")
 
         // 构建探索结果
@@ -855,6 +875,18 @@ class ExplorationManager: ObservableObject {
     /// 执行搜刮
     func scavengePOI(_ poi: POI) async {
         print("🏪 [POI] 开始搜刮: \(poi.name)，危险等级: \(poi.dangerLevel)")
+
+        // 检查每日搜刮次数限制
+        let entitlement = EntitlementManager.shared
+        guard entitlement.canScavengePOI() else {
+            print("🏪 [POI] 每日搜刮次数已用尽")
+            showPOIPopup = false
+            entitlement.triggerPaywall(reason: .poiScavengeLimit)
+            return
+        }
+
+        // 增加每日搜刮计数
+        entitlement.incrementDailyCount(for: .poiScavenge)
 
         // 关闭提示弹窗
         showPOIPopup = false

@@ -169,22 +169,34 @@ struct TerritoryBuildingRow: View {
     private var statusView: some View {
         switch building.status {
         case .constructing:
-            HStack(spacing: 4) {
-                Image(systemName: "hammer")
-                    .font(.caption2)
-                Text(building.formattedRemainingTime)
-                    .font(.caption)
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Image(systemName: "hammer")
+                        .font(.caption2)
+                    Text(building.formattedRemainingTime)
+                        .font(.caption)
+                }
+                .foregroundColor(ApocalypseTheme.warning)
+
+                InstantBuildButton {
+                    Task { try? await BuildingManager.shared.useInstantBuild(for: building.id) }
+                }
             }
-            .foregroundColor(ApocalypseTheme.warning)
 
         case .upgrading:
-            HStack(spacing: 4) {
-                Image(systemName: "arrow.up.circle")
-                    .font(.caption2)
-                Text("升级中 \(building.formattedRemainingTime)")
-                    .font(.caption)
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.circle")
+                        .font(.caption2)
+                    Text("升级中 \(building.formattedRemainingTime)")
+                        .font(.caption)
+                }
+                .foregroundColor(ApocalypseTheme.info)
+
+                InstantBuildButton {
+                    Task { try? await BuildingManager.shared.useInstantBuild(for: building.id) }
+                }
             }
-            .foregroundColor(ApocalypseTheme.info)
 
         case .active:
             HStack(spacing: 4) {

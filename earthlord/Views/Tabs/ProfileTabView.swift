@@ -28,6 +28,12 @@ struct ProfileTabView: View {
     /// Toast 消息
     @State private var toastMessage: String?
 
+    /// 是否显示付费墙
+    @State private var showPaywall: Bool = false
+
+    /// 是否显示商店
+    @State private var showShop: Bool = false
+
     // MARK: - Body
     var body: some View {
         ZStack {
@@ -103,6 +109,12 @@ struct ProfileTabView: View {
             )
             .presentationDetents([.medium])
         }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+        }
+        .sheet(isPresented: $showShop) {
+            ConsumableShopView()
+        }
     }
 
     // MARK: - 用户信息卡片
@@ -149,10 +161,17 @@ struct ProfileTabView: View {
 
             // 幸存者等级标签
             HStack(spacing: 6) {
-                Image(systemName: "shield.checkered")
-                    .font(.caption)
-                Text("幸存者 Lv.1".localized)
-                    .font(.caption.bold())
+                if EntitlementManager.shared.isSubscribed {
+                    Image(systemName: "crown.fill")
+                        .font(.caption)
+                    Text("精英幸存者".localized)
+                        .font(.caption.bold())
+                } else {
+                    Image(systemName: "shield.checkered")
+                        .font(.caption)
+                    Text("幸存者 Lv.1".localized)
+                        .font(.caption.bold())
+                }
             }
             .foregroundColor(ApocalypseTheme.primary)
             .padding(.horizontal, 12)
@@ -178,6 +197,9 @@ struct ProfileTabView: View {
     // MARK: - 通用设置
     private var menuSection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // 会员服务菜单组
+            iapMenuSection
+
             Text("通用".localized)
                 .font(.headline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
@@ -207,6 +229,54 @@ struct ProfileTabView: View {
             .background(ApocalypseTheme.cardBackground)
             .cornerRadius(16)
         }
+    }
+
+    // MARK: - 会员服务菜单
+    private var iapMenuSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("会员服务".localized)
+                .font(.headline)
+                .foregroundColor(ApocalypseTheme.textSecondary)
+                .padding(.leading, 4)
+
+            VStack(spacing: 2) {
+                if EntitlementManager.shared.isSubscribed {
+                    // 已订阅：显示会员管理
+                    MenuRow(
+                        icon: "crown.fill",
+                        title: "精英幸存者".localized,
+                        value: subscriptionStatusText,
+                        showArrow: true
+                    ) {
+                        // 打开系统订阅管理
+                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                            openURL(url)
+                        }
+                    }
+                } else {
+                    // 未订阅：显示升级入口
+                    MenuRow(icon: "crown.fill", title: "精英幸存者".localized, value: "升级".localized, showArrow: true) {
+                        showPaywall = true
+                    }
+                }
+
+                MenuRow(icon: "bag.fill", title: "物资商店".localized, showArrow: true) {
+                    showShop = true
+                }
+            }
+            .background(ApocalypseTheme.cardBackground)
+            .cornerRadius(16)
+        }
+    }
+
+    /// 订阅状态文字
+    private var subscriptionStatusText: String {
+        if let expiresAt = StoreKitManager.shared.subscriptionStatus.expiresAt {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy/MM/dd"
+            return "到期 \(formatter.string(from: expiresAt))"
+        }
+        return "已订阅"
     }
 
     // MARK: - 退出登录按钮

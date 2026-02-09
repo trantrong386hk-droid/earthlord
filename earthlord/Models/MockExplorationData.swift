@@ -801,7 +801,7 @@ struct MockPOIData {
 struct ExplorationLoot: Identifiable, Codable {
     let id: UUID
     let itemId: String             // 物品定义 ID
-    let quantity: Int              // 获得数量
+    var quantity: Int              // 获得数量
     let quality: ItemQuality?      // 品质（可选）
 
     // MARK: - AI 生成字段
