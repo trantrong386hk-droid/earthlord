@@ -131,11 +131,11 @@ struct PaywallView: View {
                 .foregroundColor(ApocalypseTheme.primary)
                 .shadow(color: ApocalypseTheme.primary.opacity(0.5), radius: 10)
 
-            Text("精英幸存者")
+            Text("精英幸存者".localized)
                 .font(.largeTitle.bold())
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
-            Text("解锁所有高级特权，畅享末日生存")
+            Text("解锁所有高级特权，畅享末日生存".localized)
                 .font(.subheadline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
         }
@@ -147,15 +147,15 @@ struct PaywallView: View {
         VStack(spacing: 0) {
             // 表头
             HStack {
-                Text("特权")
+                Text("特权".localized)
                     .font(.caption.bold())
                     .foregroundColor(ApocalypseTheme.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text("免费")
+                Text("免费".localized)
                     .font(.caption.bold())
                     .foregroundColor(ApocalypseTheme.textMuted)
                     .frame(width: 60)
-                Text("精英")
+                Text("精英".localized)
                     .font(.caption.bold())
                     .foregroundColor(ApocalypseTheme.primary)
                     .frame(width: 60)
@@ -166,14 +166,14 @@ struct PaywallView: View {
             Divider().background(ApocalypseTheme.textMuted.opacity(0.3))
 
             // 权益行
-            benefitRow(title: "每日探索", free: "3 次", elite: "无限")
-            benefitRow(title: "每日圈地", free: "5 次", elite: "无限")
-            benefitRow(title: "每日搜刮", free: "10 次", elite: "无限")
-            benefitRow(title: "背包容量", free: "30kg", elite: "50kg")
-            benefitRow(title: "建造速度", free: "正常", elite: "2 倍速")
-            benefitRow(title: "探索奖励", free: "正常", elite: "1.5 倍")
-            benefitRow(title: "通讯范围", free: "正常", elite: "+20%")
-            benefitRow(title: "交易手续费", free: "5%", elite: "0%")
+            benefitRow(title: "每日探索".localized, free: "3 次".localized, elite: "无限".localized)
+            benefitRow(title: "每日圈地".localized, free: "5 次".localized, elite: "无限".localized)
+            benefitRow(title: "每日搜刮".localized, free: "10 次".localized, elite: "无限".localized)
+            benefitRow(title: "背包容量".localized, free: "30kg", elite: "50kg")
+            benefitRow(title: "建造速度".localized, free: "正常".localized, elite: "2 倍速".localized)
+            benefitRow(title: "探索奖励".localized, free: "正常".localized, elite: "1.5 倍".localized)
+            benefitRow(title: "通讯范围".localized, free: "正常".localized, elite: "+20%".localized)
+            benefitRow(title: "交易手续费".localized, free: "5%".localized, elite: "0%".localized)
         }
         .background(ApocalypseTheme.cardBackground)
         .cornerRadius(16)
@@ -205,19 +205,19 @@ struct PaywallView: View {
             // 月订阅
             planCard(
                 plan: .monthly,
-                title: "月订阅",
-                price: storeKit.monthlyProduct?.displayPrice ?? "¥25",
-                subtitle: "按月计费",
+                title: "月订阅".localized,
+                price: storeKit.monthlyProduct?.cnyPrice ?? "¥25",
+                subtitle: "按月计费".localized,
                 isSelected: selectedPlan == .monthly
             )
 
             // 年订阅
             planCard(
                 plan: .annual,
-                title: "年订阅",
-                price: storeKit.annualProduct?.displayPrice ?? "¥198",
-                subtitle: "约 66 折，最划算",
-                badge: "推荐",
+                title: "年订阅".localized,
+                price: storeKit.annualProduct?.cnyPrice ?? "¥198",
+                subtitle: "约 66 折，最划算".localized,
+                badge: "推荐".localized,
                 isSelected: selectedPlan == .annual
             )
         }
@@ -281,7 +281,7 @@ struct PaywallView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "crown.fill")
-                Text("立即订阅")
+                Text("立即订阅".localized)
                     .font(.headline)
             }
             .foregroundColor(.white)
@@ -310,31 +310,31 @@ struct PaywallView: View {
                     await storeKit.restorePurchases()
                     isPurchasing = false
                     if storeKit.subscriptionStatus.isSubscribed {
-                        showToast("订阅已恢复")
+                        showToast("订阅已恢复".localized)
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                             dismiss()
                         }
                     } else {
-                        showToast("未找到有效订阅")
+                        showToast("未找到有效订阅".localized)
                     }
                 }
             } label: {
-                Text("恢复购买")
+                Text("恢复购买".localized)
                     .font(.subheadline)
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
 
             HStack(spacing: 16) {
-                Link("使用条款", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                Link("使用条款".localized, destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                     .font(.caption)
                     .foregroundColor(ApocalypseTheme.textMuted)
 
-                Link("隐私政策", destination: URL(string: "https://trantrong386hk-droid.github.io/earthlord-support/privacy.html")!)
+                Link("隐私政策".localized, destination: URL(string: "https://trantrong386hk-droid.github.io/earthlord-support/privacy.html")!)
                     .font(.caption)
                     .foregroundColor(ApocalypseTheme.textMuted)
             }
 
-            Text("订阅将在到期前 24 小时自动续费，可在设置中管理或取消")
+            Text("订阅将在到期前 24 小时自动续费，可在设置中管理或取消".localized)
                 .font(.caption2)
                 .foregroundColor(ApocalypseTheme.textMuted)
                 .multilineTextAlignment(.center)
@@ -352,7 +352,7 @@ struct PaywallView: View {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: ApocalypseTheme.primary))
                     .scaleEffect(1.5)
-                Text("处理中...")
+                Text("处理中...".localized)
                     .font(.subheadline)
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -374,7 +374,7 @@ struct PaywallView: View {
         }
 
         guard let product = product else {
-            showToast("商品暂不可用")
+            showToast("商品暂不可用".localized)
             return
         }
 
@@ -383,7 +383,7 @@ struct PaywallView: View {
         isPurchasing = false
 
         if success {
-            showToast("订阅成功！")
+            showToast("订阅成功！".localized)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 dismiss()
             }

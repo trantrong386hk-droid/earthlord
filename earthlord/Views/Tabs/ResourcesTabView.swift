@@ -59,6 +59,7 @@ struct ResourcesTabView: View {
             }
             .navigationTitle("资源")
             .navigationBarTitleDisplayMode(.large)
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
         .onChange(of: selectedTab) { _, newValue in
             if newValue != 2 {
@@ -114,12 +115,8 @@ struct ResourcesTabView: View {
             BackpackContentView()
 
         case .purchased:
-            // 已购（占位）
-            placeholderView(
-                icon: "bag.fill",
-                title: "已购物品",
-                subtitle: "功能开发中"
-            )
+            // 已购
+            PurchasedContentView()
 
         case .trade:
             TradeMainView()
@@ -420,7 +417,6 @@ private struct BackpackContentView: View {
     @State private var animatedCapacityPercentage: Double = 0
 
     /// 是否正在添加测试材料
-    @State private var isAddingTestMaterials: Bool = false
 
     /// 背包物品列表（从 InventoryManager 获取）
     private var items: [BackpackItem] {
@@ -535,31 +531,6 @@ private struct BackpackContentView: View {
                         .foregroundColor(ApocalypseTheme.textPrimary)
 
                     Spacer()
-
-                    // 添加测试建筑材料按钮
-                    Button {
-                        Task {
-                            isAddingTestMaterials = true
-                            do {
-                                try await inventoryManager.addTestBuildingMaterials()
-                            } catch {
-                                print("添加测试材料失败: \(error)")
-                            }
-                            isAddingTestMaterials = false
-                        }
-                    } label: {
-                        if isAddingTestMaterials {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: ApocalypseTheme.primary))
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "hammer.fill")
-                                .font(.body)
-                                .foregroundColor(ApocalypseTheme.primary)
-                        }
-                    }
-                    .disabled(isAddingTestMaterials)
-                    .padding(.trailing, 8)
 
                     Text(String(format: "%.0f / %.0f", currentCapacity, maxCapacity))
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
@@ -948,6 +919,204 @@ private struct BackpackItemCard: View {
                         .padding(.vertical, 6)
                         .background(Capsule().fill(ApocalypseTheme.primary))
                 }
+            }
+        }
+    }
+}
+
+// MARK: - 已购内容视图
+
+private struct PurchasedContentView: View {
+    @ObservedObject private var storeKit = StoreKitManager.shared
+
+    /// 列表项入场动画
+    @State private var itemsAppeared: Bool = false
+
+    /// 日期格式化器
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f
+    }()
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                if storeKit.purchaseHistory.isEmpty {
+                    emptyStateView
+                } else {
+                    ForEach(Array(storeKit.purchaseHistory.enumerated()), id: \.element.id) { index, item in
+                        PurchaseHistoryCard(item: item)
+                            .opacity(itemsAppeared ? 1 : 0)
+                            .offset(y: itemsAppeared ? 0 : 20)
+                            .animation(
+                                .easeOut(duration: 0.3).delay(Double(index) * 0.06),
+                                value: itemsAppeared
+                            )
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 100)
+        }
+        .task {
+            await storeKit.loadPurchaseHistory()
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    itemsAppeared = true
+                }
+            }
+        }
+    }
+
+    /// 空状态
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "bag")
+                .font(.system(size: 60))
+                .foregroundColor(ApocalypseTheme.textMuted)
+
+            Text("暂无购买记录")
+                .font(.headline)
+                .foregroundColor(ApocalypseTheme.textSecondary)
+
+            Text("在物质商店购买后，记录会显示在这里")
+                .font(.subheadline)
+                .foregroundColor(ApocalypseTheme.textMuted)
+                .multilineTextAlignment(.center)
+
+            Button {
+                EntitlementManager.shared.showPaywall = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "cart.fill")
+                        .font(.subheadline)
+                    Text("前往商店")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Capsule().fill(ApocalypseTheme.primary))
+            }
+            .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 80)
+    }
+}
+
+// MARK: - 购买记录卡片
+
+private struct PurchaseHistoryCard: View {
+    let item: PurchaseHistoryItem
+
+    private var meta: IAPProductMeta? {
+        IAPProductMeta.all[item.productId]
+    }
+
+    private var icon: String {
+        meta?.icon ?? "questionmark.circle"
+    }
+
+    private var displayName: String {
+        meta?.displayName ?? item.productId
+    }
+
+    private var iconColor: Color {
+        if IAPProductID.subscriptionIDs.contains(item.productId) {
+            return ApocalypseTheme.warning
+        }
+        return ApocalypseTheme.primary
+    }
+
+    /// 状态标签文字
+    private var statusText: String {
+        switch item.status {
+        case .subscriptionActive:
+            return "生效中"
+        case .subscriptionExpired:
+            return "已过期"
+        case .consumableAvailable:
+            return "可用"
+        case .consumableDelivered:
+            return "已发放"
+        }
+    }
+
+    /// 状态标签颜色
+    private var statusColor: Color {
+        switch item.status {
+        case .subscriptionActive:
+            return ApocalypseTheme.success
+        case .subscriptionExpired:
+            return ApocalypseTheme.danger
+        case .consumableAvailable:
+            return ApocalypseTheme.info
+        case .consumableDelivered:
+            return ApocalypseTheme.textMuted
+        }
+    }
+
+    /// 状态详情文字
+    private var statusDetail: String? {
+        if case .subscriptionActive(let expiresAt) = item.status {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd"
+            return "到期: \(f.string(from: expiresAt))"
+        }
+        return nil
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f
+    }()
+
+    var body: some View {
+        ApocalypseCard(padding: 12) {
+            HStack(spacing: 12) {
+                // 商品图标
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(iconColor)
+                    .frame(width: 40, height: 40)
+                    .background(iconColor.opacity(0.15))
+                    .clipShape(Circle())
+
+                // 商品名称 + 购买时间
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    Text(Self.dateFormatter.string(from: item.purchasedAt))
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textMuted)
+
+                    if let detail = statusDetail {
+                        Text(detail)
+                            .font(.caption2)
+                            .foregroundColor(ApocalypseTheme.textSecondary)
+                    }
+                }
+
+                Spacer()
+
+                // 状态标签
+                Text(statusText)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(statusColor))
             }
         }
     }

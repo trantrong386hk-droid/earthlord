@@ -23,34 +23,34 @@ enum PaywallReason {
     var title: String {
         switch self {
         case .explorationLimit:
-            return "今日探索次数已用尽"
+            return "今日探索次数已用尽".localized
         case .territoryLimit:
-            return "今日圈地次数已用尽"
+            return "今日圈地次数已用尽".localized
         case .poiScavengeLimit:
-            return "今日搜刮次数已用尽"
+            return "今日搜刮次数已用尽".localized
         case .backpackFull:
-            return "背包容量不足"
+            return "背包容量不足".localized
         case .buildSpeedBoost:
-            return "建造等待中"
+            return "建造等待中".localized
         case .explorationRewardBoost:
-            return "获取更多奖励"
+            return "获取更多奖励".localized
         }
     }
 
     var subtitle: String {
         switch self {
         case .explorationLimit:
-            return "升级精英幸存者，享受无限探索"
+            return "升级精英幸存者，享受无限探索".localized
         case .territoryLimit:
-            return "升级精英幸存者，享受无限圈地"
+            return "升级精英幸存者，享受无限圈地".localized
         case .poiScavengeLimit:
-            return "升级精英幸存者，享受无限搜刮"
+            return "升级精英幸存者，享受无限搜刮".localized
         case .backpackFull:
-            return "升级精英幸存者，背包扩容至 50kg/40L"
+            return "升级精英幸存者，背包扩容至 50kg/40L".localized
         case .buildSpeedBoost:
-            return "精英幸存者建造速度 2 倍，或使用即时建造卡"
+            return "精英幸存者建造速度 2 倍，或使用即时建造卡".localized
         case .explorationRewardBoost:
-            return "精英幸存者探索奖励 +50%"
+            return "精英幸存者探索奖励 +50%".localized
         }
     }
 }

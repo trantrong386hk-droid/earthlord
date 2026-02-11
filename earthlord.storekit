@@ -1,5 +1,5 @@
 {
-  "identifier" : "E3D2F1A0-8C4B-4A3E-9F5D-1B2C3D4E5F60",
+  "identifier" : "A3F7B2C1",
   "nonRenewingSubscriptions" : [
 
   ],
@@ -7,7 +7,7 @@
     {
       "displayPrice" : "6",
       "familyShareable" : false,
-      "internalID" : "consumable_resource_box",
+      "internalID" : "E5F6A7B8",
       "localizations" : [
         {
           "description" : "木材x50、石头x50、金属板x30、电子元件x20",
@@ -22,7 +22,7 @@
     {
       "displayPrice" : "12",
       "familyShareable" : false,
-      "internalID" : "consumable_instant_build",
+      "internalID" : "D4C3B2A1",
       "localizations" : [
         {
           "description" : "立即完成一个建筑的建造或升级",
@@ -37,7 +37,7 @@
     {
       "displayPrice" : "18",
       "familyShareable" : false,
-      "internalID" : "consumable_exploration_boost",
+      "internalID" : "F1E2D3C4",
       "localizations" : [
         {
           "description" : "24小时内探索奖励x2，与订阅叠加可达x3",
@@ -52,7 +52,7 @@
     {
       "displayPrice" : "25",
       "familyShareable" : false,
-      "internalID" : "consumable_legendary_crate",
+      "internalID" : "B5A6C7D8",
       "localizations" : [
         {
           "description" : "3个传奇级AI生成物品，独特故事背景",
@@ -66,96 +66,11 @@
     }
   ],
   "settings" : {
-    "_applicationInternalID" : "earthlord",
-    "_developerTeamID" : "",
-    "_failTransactionsEnabled" : false,
-    "_lastSynchronizedDate" : "",
-    "_storeKitErrors" : [
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "Load Products"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "Purchase"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "Verification"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "App Store Sync"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "Subscription Status"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "App Transaction"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "Manage Subscriptions Sheet"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "Offer Code Redeem Sheet"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "Message"
-      },
-      {
-        "current" : {
-          "index" : 0,
-          "type" : "generic"
-        },
-        "enabled" : false,
-        "name" : "Win Back Offer"
-      }
-    ]
+    "_defaultStorefront" : "CHN"
   },
   "subscriptionGroups" : [
     {
-      "id" : "elite_survivor_group",
+      "id" : "C9D0E1F2",
       "localizations" : [
         {
           "description" : "精英幸存者订阅",
@@ -175,7 +90,7 @@
           "displayPrice" : "25",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "sub_elite_monthly",
+          "internalID" : "F3A4B5C6",
           "introductoryOffer" : null,
           "localizations" : [
             {
@@ -187,7 +102,7 @@
           "productID" : "com.earthlord.elite.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Elite Monthly",
-          "subscriptionGroupID" : "elite_survivor_group",
+          "subscriptionGroupID" : "C9D0E1F2",
           "type" : "RecurringSubscription",
           "winBackOffers" : [
 
@@ -203,7 +118,7 @@
           "displayPrice" : "198",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "sub_elite_annual",
+          "internalID" : "A7B8C9D0",
           "introductoryOffer" : null,
           "localizations" : [
             {
@@ -215,7 +130,7 @@
           "productID" : "com.earthlord.elite.annual",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Elite Annual",
-          "subscriptionGroupID" : "elite_survivor_group",
+          "subscriptionGroupID" : "C9D0E1F2",
           "type" : "RecurringSubscription",
           "winBackOffers" : [
 

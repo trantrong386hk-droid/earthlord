@@ -28,7 +28,7 @@ struct ConsumableShopView: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         // 说明文字
-                        Text("获取物资，加速你的末日生存之旅")
+                        Text("获取物资，加速你的末日生存之旅".localized)
                             .font(.subheadline)
                             .foregroundColor(ApocalypseTheme.textSecondary)
                             .padding(.top, 8)
@@ -58,14 +58,14 @@ struct ConsumableShopView: View {
 
                             // 提示 + 重新加载
                             VStack(spacing: 12) {
-                                Text("商品配置中，请稍后再试")
+                                Text("商品配置中，请稍后再试".localized)
                                     .font(.caption)
                                     .foregroundColor(ApocalypseTheme.textMuted)
 
                                 Button {
                                     Task { await storeKit.loadProducts() }
                                 } label: {
-                                    Label("重新加载", systemImage: "arrow.clockwise")
+                                    Label("重新加载".localized, systemImage: "arrow.clockwise")
                                         .font(.caption)
                                         .foregroundColor(ApocalypseTheme.primary)
                                 }
@@ -76,7 +76,7 @@ struct ConsumableShopView: View {
                             VStack(spacing: 12) {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: ApocalypseTheme.primary))
-                                Text("正在加载商品...")
+                                Text("正在加载商品...".localized)
                                     .font(.subheadline)
                                     .foregroundColor(ApocalypseTheme.textMuted)
                             }
@@ -95,7 +95,7 @@ struct ConsumableShopView: View {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: ApocalypseTheme.primary))
                                 .scaleEffect(1.5)
-                            Text("处理中...")
+                            Text("处理中...".localized)
                                 .font(.subheadline)
                                 .foregroundColor(ApocalypseTheme.textSecondary)
                         }
@@ -120,7 +120,7 @@ struct ConsumableShopView: View {
                     }
                 }
             }
-            .navigationTitle("物资商店")
+            .navigationTitle("物资商店".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -174,11 +174,11 @@ struct ConsumableShopView: View {
                     let success = await storeKit.purchase(product)
                     isPurchasing = false
                     if success {
-                        showToast("购买成功！")
+                        showToast("购买成功！".localized)
                     }
                 }
             } label: {
-                Text(product.displayPrice)
+                Text(product.cnyPrice)
                     .font(.subheadline.bold())
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -234,11 +234,11 @@ struct ConsumableShopView: View {
                         let success = await storeKit.purchase(product)
                         isPurchasing = false
                         if success {
-                            showToast("购买成功！")
+                            showToast("购买成功！".localized)
                         }
                     } else {
                         isPurchasing = false
-                        showToast("商品加载失败，请检查网络后重试")
+                        showToast("商品加载失败，请检查网络后重试".localized)
                     }
                 }
             } label: {

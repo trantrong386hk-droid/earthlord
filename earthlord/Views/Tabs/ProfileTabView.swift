@@ -210,10 +210,6 @@ struct ProfileTabView: View {
                     showLanguagePicker = true
                 }
 
-                MenuRow(icon: "moon", title: "深色模式".localized, value: "跟随系统".localized, showArrow: true) {
-                    showToast("功能开发中...".localized)
-                }
-
                 MenuRow(icon: "questionmark.circle.fill", title: "技术支持".localized, showArrow: true) {
                     if let url = URL(string: "https://trantrong386hk-droid.github.io/earthlord-support/support.html") {
                         openURL(url)

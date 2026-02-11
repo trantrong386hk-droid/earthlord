@@ -58,6 +58,9 @@ class StoreKitManager: ObservableObject {
     /// 是否正在购买
     @Published var isPurchasing: Bool = false
 
+    /// 购买历史记录
+    @Published var purchaseHistory: [PurchaseHistoryItem] = []
+
     // MARK: - 私有属性
 
     /// 交易监听任务
@@ -96,8 +99,19 @@ class StoreKitManager: ObservableObject {
         isLoading = true
         errorMessage = nil
 
+        // 诊断：打印请求的商品 ID
+        print("💰 [StoreKit] 请求加载商品，IDs: \(IAPProductID.allProductIDs)")
+
         do {
-            let storeProducts = try await Product.products(for: IAPProductID.allProductIDs)
+            var storeProducts = try await Product.products(for: IAPProductID.allProductIDs)
+
+            // 若首次为空，等 2 秒后重试一次
+            if storeProducts.isEmpty {
+                print("💰 [StoreKit] ⚠️ 首次加载为空，2 秒后重试...")
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+                storeProducts = try await Product.products(for: IAPProductID.allProductIDs)
+            }
+
             products = storeProducts.sorted { p1, p2 in
                 // 订阅优先，然后按价格排序
                 if IAPProductID.subscriptionIDs.contains(p1.id) && !IAPProductID.subscriptionIDs.contains(p2.id) {
@@ -111,6 +125,18 @@ class StoreKitManager: ObservableObject {
             print("💰 [StoreKit] ✅ 加载了 \(products.count) 个商品")
             for product in products {
                 print("💰 [StoreKit]   - \(product.id): \(product.displayName) \(product.displayPrice)")
+            }
+
+            // 诊断：若仍为空，打印环境信息
+            if products.isEmpty {
+                print("💰 [StoreKit] ⚠️ 重试后仍为空。诊断信息：")
+                print("💰 [StoreKit]   - 请求的 IDs 数量: \(IAPProductID.allProductIDs.count)")
+                print("💰 [StoreKit]   - Bundle ID: \(Bundle.main.bundleIdentifier ?? "nil")")
+                #if DEBUG
+                print("💰 [StoreKit]   - 环境: DEBUG（应使用 StoreKit Testing）")
+                #else
+                print("💰 [StoreKit]   - 环境: RELEASE（使用 App Store）")
+                #endif
             }
         } catch {
             errorMessage = "加载商品失败: \(error.localizedDescription)"
@@ -440,6 +466,76 @@ class StoreKitManager: ObservableObject {
         }
     }
 
+    // MARK: - 购买历史
+
+    /// 从 Supabase 加载购买历史记录
+    func loadPurchaseHistory() async {
+        guard let userId = try? await supabase.auth.session.user.id else {
+            print("💰 [购买历史] ⚠️ 未登录，跳过加载")
+            return
+        }
+
+        var items: [PurchaseHistoryItem] = []
+
+        // 查询消耗品购买记录
+        do {
+            let consumables: [DBConsumableFetch] = try await supabase
+                .from("consumable_purchases")
+                .select("id, product_id, purchased_at, consumed_at")
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+                .value
+
+            for record in consumables {
+                let status: PurchaseHistoryStatus
+                if record.productId == IAPProductID.resourceBox || record.productId == IAPProductID.legendaryCrate {
+                    status = .consumableDelivered
+                } else {
+                    status = record.consumedAt == nil ? .consumableAvailable : .consumableDelivered
+                }
+                items.append(PurchaseHistoryItem(
+                    id: record.id,
+                    productId: record.productId,
+                    purchasedAt: record.purchasedAt,
+                    status: status
+                ))
+            }
+        } catch {
+            print("💰 [购买历史] ❌ 查询消耗品失败: \(error)")
+        }
+
+        // 查询订阅记录
+        do {
+            let subscriptions: [DBSubscriptionFetch] = try await supabase
+                .from("user_subscriptions")
+                .select("id, product_id, status, purchased_at, expires_at")
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+                .value
+
+            for record in subscriptions {
+                let status: PurchaseHistoryStatus
+                if record.status == "active" && record.expiresAt > Date() {
+                    status = .subscriptionActive(expiresAt: record.expiresAt)
+                } else {
+                    status = .subscriptionExpired
+                }
+                items.append(PurchaseHistoryItem(
+                    id: record.id,
+                    productId: record.productId,
+                    purchasedAt: record.purchasedAt,
+                    status: status
+                ))
+            }
+        } catch {
+            print("💰 [购买历史] ❌ 查询订阅失败: \(error)")
+        }
+
+        // 按购买时间降序排列
+        purchaseHistory = items.sorted { $0.purchasedAt > $1.purchasedAt }
+        print("💰 [购买历史] ✅ 加载了 \(purchaseHistory.count) 条记录")
+    }
+
     // MARK: - 便捷方法
 
     /// 获取订阅类商品
@@ -460,6 +556,18 @@ class StoreKitManager: ObservableObject {
     /// 获取年订阅商品
     var annualProduct: Product? {
         products.first { $0.id == IAPProductID.eliteAnnual }
+    }
+}
+
+// MARK: - 人民币价格格式化
+
+extension Product {
+    /// 以人民币格式显示价格（¥6.00）
+    var cnyPrice: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.string(from: price as NSDecimalNumber) ?? displayPrice
     }
 }
 
@@ -498,5 +606,54 @@ struct DBConsumableRecord: Codable {
         case productId = "product_id"
         case transactionId = "transaction_id"
         case purchasedAt = "purchased_at"
+    }
+}
+
+// MARK: - 购买历史模型
+
+/// 购买历史展示模型
+struct PurchaseHistoryItem: Identifiable {
+    let id: UUID
+    let productId: String
+    let purchasedAt: Date
+    let status: PurchaseHistoryStatus
+}
+
+enum PurchaseHistoryStatus {
+    case subscriptionActive(expiresAt: Date)
+    case subscriptionExpired
+    case consumableAvailable   // 未使用（如即时建造卡）
+    case consumableDelivered   // 已发放（资源箱、传奇箱购买即发放）
+}
+
+/// 消耗品购买记录查询模型
+struct DBConsumableFetch: Codable, Identifiable {
+    let id: UUID
+    let productId: String
+    let purchasedAt: Date
+    let consumedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case productId = "product_id"
+        case purchasedAt = "purchased_at"
+        case consumedAt = "consumed_at"
+    }
+}
+
+/// 订阅记录查询模型
+struct DBSubscriptionFetch: Codable, Identifiable {
+    let id: UUID
+    let productId: String
+    let status: String
+    let purchasedAt: Date
+    let expiresAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case productId = "product_id"
+        case status
+        case purchasedAt = "purchased_at"
+        case expiresAt = "expires_at"
     }
 }

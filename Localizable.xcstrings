@@ -113,8 +113,140 @@
     "• 长度: 3-20 个字符\n• 仅支持字母、数字、连字符（-）" : {
 
     },
+    "+20%" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+20%"
+          }
+        }
+      }
+    },
     "×%lld" : {
 
+    },
+    "0%" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0%"
+          }
+        }
+      }
+    },
+    "1.5 倍" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1.5x"
+          }
+        }
+      }
+    },
+    "2 倍速" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2x"
+          }
+        }
+      }
+    },
+    "3 个传奇级 AI 物品" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3 legendary AI items"
+          }
+        }
+      }
+    },
+    "3 个传奇级 AI 生成物品" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3 AI-generated legendary items"
+          }
+        }
+      }
+    },
+    "3 次" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3 times"
+          }
+        }
+      }
+    },
+    "5 次" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 times"
+          }
+        }
+      }
+    },
+    "5%" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5%"
+          }
+        }
+      }
+    },
+    "10 次" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 times"
+          }
+        }
+      }
+    },
+    "24 小时内探索奖励 x2" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2x explore rewards for 24h"
+          }
+        }
+      }
+    },
+    "24 小时探索奖励翻倍" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24h double explore rewards"
+          }
+        }
+      }
     },
     "Day 33 实现" : {
 
@@ -190,6 +322,17 @@
     "与 @%@ 的交易" : {
 
     },
+    "与订阅叠加可达 x3" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stacks with subscription for 3x"
+          }
+        }
+      }
+    },
     "两次输入的密码不一致" : {
       "localizations" : {
         "en" : {
@@ -247,11 +390,77 @@
     "交易成功" : {
 
     },
+    "交易手续费" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trade Fee"
+          }
+        }
+      }
+    },
+    "交易零手续费" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zero trade fee"
+          }
+        }
+      }
+    },
     "什么是呼号？" : {
 
     },
     "仅接收" : {
 
+    },
+    "今日圈地次数已用尽" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily claim limit reached"
+          }
+        }
+      }
+    },
+    "今日探索次数已用尽" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily explore limit reached"
+          }
+        }
+      }
+    },
+    "今日搜刮次数已用尽" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily scavenge limit reached"
+          }
+        }
+      }
+    },
+    "传奇物资箱" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legendary Crate"
+          }
+        }
+      }
     },
     "你发现了新的物资" : {
 
@@ -284,7 +493,15 @@
 
     },
     "使用条款" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Use"
+          }
+        }
+      }
     },
     "保存呼号" : {
 
@@ -326,7 +543,15 @@
       }
     },
     "免费" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Free"
+          }
+        }
+      }
     },
     "关于" : {
       "extractionState" : "stale",
@@ -432,6 +657,9 @@
     "删除频道" : {
 
     },
+    "前往商店" : {
+
+    },
     "前往设置" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -466,6 +694,17 @@
     "加载消息中..." : {
 
     },
+    "包含月订阅所有特权" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes all monthly perks"
+          }
+        }
+      }
+    },
     "升级" : {
 
     },
@@ -483,6 +722,50 @@
     },
     "升级时间" : {
 
+    },
+    "升级精英幸存者，享受无限圈地" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upgrade to Elite Survivor for unlimited claims"
+          }
+        }
+      }
+    },
+    "升级精英幸存者，享受无限探索" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upgrade to Elite Survivor for unlimited exploration"
+          }
+        }
+      }
+    },
+    "升级精英幸存者，享受无限搜刮" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upgrade to Elite Survivor for unlimited scavenging"
+          }
+        }
+      }
+    },
+    "升级精英幸存者，背包扩容至 50kg/40L" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upgrade to Elite Survivor for 50kg/40L backpack"
+          }
+        }
+      }
     },
     "危险区域" : {
       "extractionState" : "stale",
@@ -503,6 +786,17 @@
     },
     "即时完成" : {
 
+    },
+    "即时建造卡" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instant Build"
+          }
+        }
+      }
     },
     "去发现频道" : {
 
@@ -603,8 +897,38 @@
     "呼号设置" : {
 
     },
+    "商品加载失败，请检查网络后重试" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to load, check network and retry"
+          }
+        }
+      }
+    },
+    "商品暂不可用" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Product unavailable"
+          }
+        }
+      }
+    },
     "商品配置中，请稍后再试" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Products loading, please try later"
+          }
+        }
+      }
     },
     "圈占新领地" : {
       "extractionState" : "stale",
@@ -631,6 +955,17 @@
         }
       }
     },
+    "圈地建造" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claim & Build"
+          }
+        }
+      }
+    },
     "圈地成功！领地面积: %@m²" : {
 
     },
@@ -639,6 +974,20 @@
     },
     "在此输入呼叫内容..." : {
 
+    },
+    "在物质商店购买后，记录会显示在这里" : {
+
+    },
+    "在真实地图上圈定领地，建造你的末日避难所" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claim territory on the real map, build your doomsday shelter"
+          }
+        }
+      }
     },
     "在线" : {
 
@@ -664,6 +1013,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "plots"
+          }
+        }
+      }
+    },
+    "基于真实位置，探索你身边的废墟与资源点，发现隐藏的物资" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore real-world ruins and resource points around you, discover hidden supplies"
+          }
+        }
+      }
+    },
+    "基础建筑材料大礼包" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basic building materials pack"
           }
         }
       }
@@ -768,6 +1139,39 @@
         }
       }
     },
+    "年付更划算，约 66 折" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annual is cheaper, ~34% off"
+          }
+        }
+      }
+    },
+    "年付约 66 折优惠" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~34% off with annual plan"
+          }
+        }
+      }
+    },
+    "年订阅" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annual"
+          }
+        }
+      }
+    },
     "幸存者" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -786,6 +1190,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Survivor Lv.1"
+          }
+        }
+      }
+    },
+    "幸存者通讯" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Survivor Radio"
           }
         }
       }
@@ -862,6 +1277,39 @@
         }
       }
     },
+    "建造等待中" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build in progress"
+          }
+        }
+      }
+    },
+    "建造速度" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build Speed"
+          }
+        }
+      }
+    },
+    "建造速度 2 倍" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2x build speed"
+          }
+        }
+      }
+    },
     "开发者工具" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -869,6 +1317,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Developer Tools"
+          }
+        }
+      }
+    },
+    "开始你的生存之旅" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Begin Your Survival"
           }
         }
       }
@@ -951,7 +1410,15 @@
       }
     },
     "恢复购买" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Purchases"
+          }
+        }
+      }
     },
     "恭喜！您已成功圈定一块领地，共记录 %lld 个点。" : {
       "extractionState" : "stale",
@@ -1057,6 +1524,17 @@
     "按住下方按钮开始录音" : {
 
     },
+    "按月计费" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Billed monthly"
+          }
+        }
+      }
+    },
     "探索和圈占领地" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1068,14 +1546,58 @@
         }
       }
     },
+    "探索增幅器" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore Booster"
+          }
+        }
+      }
+    },
     "探索失败" : {
 
+    },
+    "探索奖励" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore Bonus"
+          }
+        }
+      }
+    },
+    "探索奖励 1.5 倍" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1.5x explore rewards"
+          }
+        }
+      }
     },
     "探索完成！" : {
 
     },
     "探索时长" : {
 
+    },
+    "探索末日世界" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore the Wasteland"
+          }
+        }
+      }
     },
     "接受" : {
 
@@ -1085,6 +1607,17 @@
     },
     "接受后物品将标记为已交换并自动下架，其他请求将被拒绝" : {
 
+    },
+    "推荐" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best"
+          }
+        }
+      }
     },
     "推荐格式" : {
 
@@ -1112,8 +1645,30 @@
     "提交评价" : {
 
     },
+    "搜刮与交易" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scavenge & Trade"
+          }
+        }
+      }
+    },
     "搜刮完成" : {
 
+    },
+    "搜刮废墟获取物资，与附近幸存者自由交易" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scavenge ruins for supplies, trade freely with nearby survivors"
+          }
+        }
+      }
     },
     "搜刮结果" : {
 
@@ -1141,6 +1696,39 @@
     },
     "收音机模式只能接收消息，无法发送" : {
 
+    },
+    "无限" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited"
+          }
+        }
+      }
+    },
+    "无限圈地次数" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited territory claims"
+          }
+        }
+      }
+    },
+    "无限探索次数" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited exploration"
+          }
+        }
+      }
     },
     "暂无交换请求" : {
 
@@ -1172,6 +1760,9 @@
     "暂无评论，快来抢沙发吧" : {
 
     },
+    "暂无购买记录" : {
+
+    },
     "暂无闲置物品" : {
 
     },
@@ -1186,6 +1777,17 @@
         }
       }
     },
+    "月订阅" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly"
+          }
+        }
+      }
+    },
     "有效期" : {
 
     },
@@ -1195,11 +1797,44 @@
     "期望交换: %@" : {
 
     },
+    "木材 x50" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wood x50"
+          }
+        }
+      }
+    },
     "未找到匹配频道" : {
 
     },
+    "未找到有效订阅" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No active subscription found"
+          }
+        }
+      }
+    },
     "未找到相关地点" : {
 
+    },
+    "末日已至，你准备好了吗？" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The apocalypse is here. Are you ready?"
+          }
+        }
+      }
     },
     "查看完整统计数据" : {
       "extractionState" : "stale",
@@ -1234,7 +1869,15 @@
       }
     },
     "正在加载商品..." : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading products..."
+          }
+        }
+      }
     },
     "正在圈地..." : {
       "extractionState" : "stale",
@@ -1282,6 +1925,17 @@
         }
       }
     },
+    "正常" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normal"
+          }
+        }
+      }
+    },
     "此操作不可撤销！" : {
       "localizations" : {
         "en" : {
@@ -1299,6 +1953,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This action cannot be undone! All data will be permanently lost."
+          }
+        }
+      }
+    },
+    "每日圈地" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Claim"
+          }
+        }
+      }
+    },
+    "每日探索" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Explore"
+          }
+        }
+      }
+    },
+    "每日搜刮" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Scavenge"
           }
         }
       }
@@ -1467,13 +2154,51 @@
 
     },
     "物资商店" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supply Shop"
+          }
+        }
+      }
     },
     "特权" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perks"
+          }
+        }
+      }
     },
     "状态监控" : {
 
+    },
+    "独特故事背景" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unique backstory"
+          }
+        }
+      }
+    },
+    "电子元件 x20" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electronics x20"
+          }
+        }
+      }
     },
     "留言（可选）" : {
 
@@ -1491,6 +2216,17 @@
     },
     "目标等级" : {
 
+    },
+    "石头 x50" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stone x50"
+          }
+        }
+      }
     },
     "确定" : {
 
@@ -1558,11 +2294,41 @@
     "稍后再说" : {
 
     },
+    "立即完成一个建筑" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete one building instantly"
+          }
+        }
+      }
+    },
+    "立即完成当前建造/升级" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete current build/upgrade"
+          }
+        }
+      }
+    },
     "立即搜刮" : {
 
     },
     "立即订阅" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe Now"
+          }
+        }
+      }
     },
     "等待其他玩家发布交易" : {
 
@@ -1592,10 +2358,81 @@
 
     },
     "精英" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elite"
+          }
+        }
+      }
     },
     "精英幸存者" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elite Survivor"
+          }
+        }
+      }
+    },
+    "精英幸存者（年）" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elite Survivor (Annual)"
+          }
+        }
+      }
+    },
+    "精英幸存者（月）" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elite Survivor (Monthly)"
+          }
+        }
+      }
+    },
+    "精英幸存者建造速度 2 倍，或使用即时建造卡" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elite Survivor builds 2x faster, or use Instant Build"
+          }
+        }
+      }
+    },
+    "精英幸存者探索奖励 +50%" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elite Survivor gets +50% explore rewards"
+          }
+        }
+      }
+    },
+    "约 66 折，最划算" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~34% off, best value"
+          }
+        }
+      }
     },
     "累计 %@" : {
 
@@ -1610,10 +2447,39 @@
 
     },
     "背包容量" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backpack"
+          }
+        }
+      }
+    },
+    "背包容量不足" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backpack full"
+          }
+        }
+      }
     },
     "背包快满了！" : {
 
+    },
+    "背包扩容至 50kg/40L" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backpack expanded to 50kg/40L"
+          }
+        }
+      }
     },
     "背包空空如也" : {
 
@@ -1629,8 +2495,27 @@
         }
       }
     },
+    "获取更多奖励" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get more rewards"
+          }
+        }
+      }
+    },
     "获取物资，加速你的末日生存之旅" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get supplies to accelerate your survival"
+          }
+        }
+      }
     },
     "获得物品" : {
 
@@ -1641,11 +2526,60 @@
     "覆盖范围: %@" : {
 
     },
+    "解锁所有高级特权" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock all premium perks"
+          }
+        }
+      }
+    },
     "解锁所有高级特权，畅享末日生存" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock all premium perks, enjoy the apocalypse"
+          }
+        }
+      }
     },
     "订阅将在到期前 24 小时自动续费，可在设置中管理或取消" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscription auto-renews 24h before expiry. Manage or cancel in Settings."
+          }
+        }
+      }
+    },
+    "订阅已恢复" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscription restored"
+          }
+        }
+      }
+    },
+    "订阅成功！" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribed!"
+          }
+        }
+      }
     },
     "订阅频道" : {
 
@@ -1789,6 +2723,17 @@
         }
       }
     },
+    "购买成功！" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase successful!"
+          }
+        }
+      }
+    },
     "资源" : {
 
     },
@@ -1799,6 +2744,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Resource Reserve"
+          }
+        }
+      }
+    },
+    "资源补给箱" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resource Box"
           }
         }
       }
@@ -1824,6 +2780,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Path not closed. Ensure start and end points are within 20 meters. Recorded %lld points."
+          }
+        }
+      }
+    },
+    "跳过" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip"
           }
         }
       }
@@ -1907,6 +2874,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter Test Page"
+          }
+        }
+      }
+    },
+    "进入游戏" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the Wasteland"
           }
         }
       }
@@ -2016,6 +2994,39 @@
     "通讯中心" : {
 
     },
+    "通讯范围" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comm Range"
+          }
+        }
+      }
+    },
+    "通讯范围 +20%" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comm range +20%"
+          }
+        }
+      }
+    },
+    "通过无线电频道与周围幸存者沟通，组建联盟" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Communicate with nearby survivors via radio channels, form alliances"
+          }
+        }
+      }
+    },
     "重命名" : {
 
     },
@@ -2026,7 +3037,15 @@
 
     },
     "重新加载" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload"
+          }
+        }
+      }
     },
     "重新发送" : {
       "localizations" : {
@@ -2051,6 +3070,17 @@
     "重新探索" : {
 
     },
+    "金属板 x30" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metal x30"
+          }
+        }
+      }
+    },
     "闲置物品" : {
 
     },
@@ -2064,7 +3094,15 @@
 
     },
     "隐私政策" : {
-
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
+          }
+        }
+      }
     },
     "隐私设置" : {
       "extractionState" : "stale",

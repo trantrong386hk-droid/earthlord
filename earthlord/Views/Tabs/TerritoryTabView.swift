@@ -67,6 +67,7 @@ struct TerritoryTabView: View {
             }
             .navigationTitle(Text("我的领地".localized))
             .navigationBarTitleDisplayMode(.large)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .refreshable {
                 await loadMyTerritories()
             }

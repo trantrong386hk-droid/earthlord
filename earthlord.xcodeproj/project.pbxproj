@@ -11,12 +11,14 @@
 		2284CE8A2F040E2D00ED2A4C /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 2284CE892F040E2D00ED2A4C /* GoogleSignIn */; };
 		2284CE8C2F040E2D00ED2A4C /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2284CE8B2F040E2D00ED2A4C /* GoogleSignInSwift */; };
 		2284CEE92F054D8400ED2A4C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2284CEE82F054D8400ED2A4C /* Localizable.xcstrings */; };
+		22E3EA6C2F3ABA0C00F4107D /* Untitled.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22E3EA6B2F3A370600F4107D /* Untitled.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		224CB8252EFACEE700E8B69B /* earthlord.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = earthlord.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2284CEE82F054D8400ED2A4C /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		22A1B0012F09000000000001 /* earthlord.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = earthlord.storekit; sourceTree = "<group>"; };
+		22E3EA6B2F3A370600F4107D /* Untitled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Untitled.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -48,6 +50,7 @@
 				2284CEE82F054D8400ED2A4C /* Localizable.xcstrings */,
 				224CB8272EFACEE700E8B69B /* earthlord */,
 				224CB8262EFACEE700E8B69B /* Products */,
+				22E3EA6B2F3A370600F4107D /* Untitled.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -142,6 +145,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				22E3EA6C2F3ABA0C00F4107D /* Untitled.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
