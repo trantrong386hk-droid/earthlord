@@ -1,0 +1,22 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserdata
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.build/
+Packages/
+
+# CocoaPods
+Pods/
+
+# Supabase
+supabase/.temp/
+
+# OS
+.DS_Store
+
+# Misc
+*.swp
+*~
