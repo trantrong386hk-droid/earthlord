@@ -365,6 +365,11 @@ struct PaywallView: View {
     // MARK: - 方法
 
     private func performPurchase() async {
+        if entitlement.isSubscribed {
+            showToast("您已是精英幸存者，无需重复订阅".localized)
+            return
+        }
+
         let product: Product?
         switch selectedPlan {
         case .monthly:

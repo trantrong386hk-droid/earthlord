@@ -41,16 +41,14 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.3), value: authManager.isAuthenticated)
         .animation(.easeInOut(duration: 0.3), value: hasCompletedOnboarding)
         .onAppear {
-            // [测试用] 临时注释老用户检查，测试完恢复
-            // if !hasCompletedOnboarding {
-            //     let hasLanguagePref = UserDefaults.standard.string(forKey: "app_language_preference") != nil
-            //     let hasExplorationCount = UserDefaults.standard.integer(forKey: "daily_exploration_count") > 0
-            //     if hasLanguagePref || hasExplorationCount {
-            //         hasCompletedOnboarding = true
-            //     }
-            // }
-            // [测试用] 强制重置 onboarding 状态
-            hasCompletedOnboarding = false
+            // 老用户检查：已有使用痕迹的用户跳过引导
+            if !hasCompletedOnboarding {
+                let hasLanguagePref = UserDefaults.standard.string(forKey: "app_language_preference") != nil
+                let hasExplorationCount = UserDefaults.standard.integer(forKey: "daily_exploration_count") > 0
+                if hasLanguagePref || hasExplorationCount {
+                    hasCompletedOnboarding = true
+                }
+            }
         }
     }
 }

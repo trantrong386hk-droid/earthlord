@@ -5,6 +5,7 @@ struct ProfileTabView: View {
     // MARK: - 属性
     @ObservedObject private var authManager = AuthManager.shared
     @ObservedObject private var languageManager = LanguageManager.shared
+    @ObservedObject private var entitlement = EntitlementManager.shared
     @Environment(\.openURL) private var openURL
 
     /// 是否显示退出确认弹窗
@@ -161,7 +162,7 @@ struct ProfileTabView: View {
 
             // 幸存者等级标签
             HStack(spacing: 6) {
-                if EntitlementManager.shared.isSubscribed {
+                if entitlement.isSubscribed {
                     Image(systemName: "crown.fill")
                         .font(.caption)
                     Text("精英幸存者".localized)
@@ -236,18 +237,15 @@ struct ProfileTabView: View {
                 .padding(.leading, 4)
 
             VStack(spacing: 2) {
-                if EntitlementManager.shared.isSubscribed {
-                    // 已订阅：显示会员管理
+                if entitlement.isSubscribed {
+                    // 已订阅：显示会员状态
                     MenuRow(
                         icon: "crown.fill",
                         title: "精英幸存者".localized,
                         value: subscriptionStatusText,
-                        showArrow: true
+                        showArrow: false
                     ) {
-                        // 打开系统订阅管理
-                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                            openURL(url)
-                        }
+                        showToast("您已是精英幸存者，无需重复订阅".localized)
                     }
                 } else {
                     // 未订阅：显示升级入口
